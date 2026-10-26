@@ -14,6 +14,17 @@ def create_client(settings: Settings) -> AsyncMongoClient:
     )
 
 
+async def ensure_indexes(db: AsyncDatabase) -> None:
+    await db.users.create_index("email", unique=True)
+    await db.sessions.create_index("token_hash", unique=True)
+    # Mongo deletes sessions by itself once expires_at has passed.
+    await db.sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.memberships.create_index(
+        [("workspace_id", 1), ("user_id", 1)], unique=True
+    )
+    await db.memberships.create_index("user_id")
+
+
 def get_db(request: Request) -> AsyncDatabase:
     return request.app.state.db
 
