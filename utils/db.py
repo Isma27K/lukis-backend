@@ -23,6 +23,7 @@ async def ensure_indexes(db: AsyncDatabase) -> None:
         [("workspace_id", 1), ("user_id", 1)], unique=True
     )
     await db.memberships.create_index("user_id")
+    await db.drawings.create_index([("workspace_id", 1), ("updated_at", -1)])
 
 
 def get_db(request: Request) -> AsyncDatabase:

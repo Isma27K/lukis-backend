@@ -1,3 +1,5 @@
+from contextlib import AsyncExitStack
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -17,7 +19,19 @@ async def app():
 
 
 @pytest.fixture
-async def client(app):
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+async def make_client(app):
+    """Opens clients with separate cookie jars, i.e. separate users."""
+    async with AsyncExitStack() as stack:
+
+        async def make() -> AsyncClient:
+            transport = ASGITransport(app=app)
+            return await stack.enter_async_context(
+                AsyncClient(transport=transport, base_url="http://test")
+            )
+
+        yield make
+
+
+@pytest.fixture
+async def client(make_client):
+    return await make_client()
