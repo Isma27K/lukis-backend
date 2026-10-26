@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     # Turn on in production, where the app is served over HTTPS.
     cookie_secure: bool = False
     session_days: int = 30
+    # The site's origin(s), comma-separated. Live-collaboration WebSockets
+    # opened from any other origin are refused.
+    frontend_origin: str = "http://localhost:3000"
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
 
 
 @lru_cache

@@ -2,3 +2,5 @@
 httpx==0.28.1
 pytest==9.1.1
 pytest-asyncio==1.4.1
+# WebSocket client for the live-collaboration tests.
+websockets==17.3

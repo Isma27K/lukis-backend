@@ -4,8 +4,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from function.errors import DomainError
+from function.realtime import Hub
 from middleware.csrf import require_json
-from routes import auth, drawings, health, invites, workspaces
+from routes import auth, drawings, health, invites, live, workspaces
 from utils.config import Settings, get_settings
 from utils.db import create_client, ensure_indexes
 
@@ -27,6 +28,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Lukis API", lifespan=lifespan)
     app.state.settings = settings
+    # Who's connected to which drawing, for live collaboration.
+    app.state.live = Hub()
     app.middleware("http")(require_json)
     # Covers every subclass: NotFoundError, ForbiddenError, ConflictError.
     app.add_exception_handler(DomainError, handle_domain_error)
@@ -35,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(workspaces.router)
     app.include_router(drawings.router)
     app.include_router(invites.router)
+    app.include_router(live.router)
     return app
 
 
