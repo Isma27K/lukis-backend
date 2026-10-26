@@ -1,12 +1,5 @@
-from datetime import UTC, datetime
-
-from bson import ObjectId
-
 import function.scene as scene_module
-from tests.helpers import element, personal_workspace_id, signup
-
-# The API refuses non-JSON mutations, and httpx sends no content type on DELETE.
-JSON = {"Content-Type": "application/json"}
+from tests.helpers import JSON, add_member, element, personal_workspace_id, signup
 
 
 async def create(client, workspace_id: str, title: str | None = None) -> dict:
@@ -174,15 +167,7 @@ async def test_viewers_can_read_but_not_change(app, make_client):
     viewer_user = await signup(viewer, email="vic@example.com", name="Vic")
     workspace_id = await personal_workspace_id(owner)
     drawing = await create(owner, workspace_id)
-    await app.state.db.memberships.insert_one(
-        {
-            "_id": ObjectId(),
-            "workspace_id": ObjectId(workspace_id),
-            "user_id": ObjectId(viewer_user["id"]),
-            "role": "viewer",
-            "created_at": datetime.now(UTC),
-        }
-    )
+    await add_member(app, workspace_id, viewer_user["id"], "viewer")
 
     details = await viewer.get(f"/drawings/{drawing['id']}")
     assert details.status_code == 200

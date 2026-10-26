@@ -1,11 +1,16 @@
 from fastapi import APIRouter, status
 
 from data.general.drawing import DrawingResponse, SaveSceneResponse, SceneResponse
-from data.request.drawing import SaveSceneRequest, UpdateDrawingRequest
+from data.request.drawing import (
+    MoveDrawingRequest,
+    SaveSceneRequest,
+    UpdateDrawingRequest,
+)
 from function.drawings import (
     delete_drawing,
     duplicate_drawing,
     get_drawing,
+    move_drawing,
     rename_drawing,
 )
 from function.scene import load_scene, save_scene
@@ -30,6 +35,15 @@ async def update_drawing(
     drawing, membership = await get_drawing(db, drawing_id, user, "editor")
     drawing = await rename_drawing(db, drawing, user, body.title)
     return DrawingResponse.from_document_with_role(drawing, membership["role"])
+
+
+@router.post("/{drawing_id}/move")
+async def relocate_drawing(
+    drawing_id: str, body: MoveDrawingRequest, db: Database, user: CurrentUser
+) -> DrawingResponse:
+    drawing, _ = await get_drawing(db, drawing_id, user, "editor")
+    moved, membership = await move_drawing(db, drawing, user, body.workspace_id)
+    return DrawingResponse.from_document_with_role(moved, membership["role"])
 
 
 @router.post("/{drawing_id}/duplicate", status_code=status.HTTP_201_CREATED)

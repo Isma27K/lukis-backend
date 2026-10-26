@@ -76,4 +76,4 @@ async def save_scene(
                 {"$set": {"updated_by": user["_id"], "updated_at": now}},
             )
             return scene["rev"] + 1
-    raise ConflictError
+    raise ConflictError("Someone else is saving at the same moment, try again")

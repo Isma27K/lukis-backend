@@ -85,6 +85,18 @@ async def rename_drawing(
     return {**drawing, **changes}
 
 
+async def move_drawing(
+    db: AsyncDatabase, drawing: DrawingDocument, user: UserDocument, workspace_id: str
+) -> tuple[DrawingDocument, MembershipDocument]:
+    """Returns the moved drawing and the user's membership in its new workspace."""
+    target_oid = parse_id(workspace_id)
+    membership = await require_role(db, target_oid, user, "editor")
+    await db.drawings.update_one(
+        {"_id": drawing["_id"]}, {"$set": {"workspace_id": target_oid}}
+    )
+    return {**drawing, "workspace_id": target_oid}, membership
+
+
 async def delete_drawing(db: AsyncDatabase, drawing: DrawingDocument) -> None:
     await db.drawings.update_one(
         {"_id": drawing["_id"]}, {"$set": {"deleted_at": datetime.now(UTC)}}

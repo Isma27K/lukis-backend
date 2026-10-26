@@ -10,7 +10,7 @@ from pymongo.errors import DuplicateKeyError
 
 from data.database.session import SessionDocument
 from data.database.user import UserDocument
-from data.database.workspace import MembershipDocument, WorkspaceDocument
+from function.workspaces import create_workspace
 
 password_hash = PasswordHash.recommended()
 
@@ -56,22 +56,7 @@ async def register_user(
     except DuplicateKeyError as error:
         raise EmailTakenError from error
 
-    workspace: WorkspaceDocument = {
-        "_id": ObjectId(),
-        "name": "Personal",
-        "owner_id": user["_id"],
-        "personal": True,
-        "created_at": now,
-    }
-    membership: MembershipDocument = {
-        "_id": ObjectId(),
-        "workspace_id": workspace["_id"],
-        "user_id": user["_id"],
-        "role": "owner",
-        "created_at": now,
-    }
-    await db.workspaces.insert_one(workspace)
-    await db.memberships.insert_one(membership)
+    await create_workspace(db, user, "Personal", personal=True)
     return user
 
 

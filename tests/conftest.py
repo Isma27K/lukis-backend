@@ -1,3 +1,4 @@
+import uuid
 from contextlib import AsyncExitStack
 
 import pytest
@@ -6,16 +7,17 @@ from httpx import ASGITransport, AsyncClient
 from main import create_app
 from utils.config import Settings
 
-TEST_DB = "lukis_test"
-
 
 @pytest.fixture
 async def app():
-    app = create_app(Settings(mongo_db=TEST_DB))
+    # A fresh database per test, so test runs that overlap (say, one in the
+    # IDE and one in a terminal) can't drop each other's data.
+    db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
+    app = create_app(Settings(mongo_db=db_name))
     # httpx's ASGITransport doesn't run lifespan events, so run them here.
     async with app.router.lifespan_context(app):
         yield app
-        await app.state.db.client.drop_database(TEST_DB)
+        await app.state.db.client.drop_database(db_name)
 
 
 @pytest.fixture

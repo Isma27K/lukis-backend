@@ -1,10 +1,31 @@
-class NotFoundError(Exception):
+class DomainError(Exception):
+    """An expected failure that maps straight to an HTTP error response."""
+
+    status_code: int
+    detail: str
+
+    def __init__(self, detail: str | None = None):
+        if detail is not None:
+            self.detail = detail
+        super().__init__(self.detail)
+
+
+class NotFoundError(DomainError):
     """It doesn't exist, or the user isn't allowed to know that it does."""
 
+    status_code = 404
+    detail = "Not found"
 
-class ForbiddenError(Exception):
+
+class ForbiddenError(DomainError):
     """The user can see it but their role doesn't allow this action."""
 
+    status_code = 403
+    detail = "You don't have permission to do that"
 
-class ConflictError(Exception):
-    """A write lost too many races with other writers; the client should retry."""
+
+class ConflictError(DomainError):
+    """The request clashes with the current state, e.g. removing the last owner."""
+
+    status_code = 409
+    detail = "That conflicts with a change someone else made"

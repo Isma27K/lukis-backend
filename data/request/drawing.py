@@ -15,6 +15,10 @@ class UpdateDrawingRequest(BaseModel):
     title: Title
 
 
+class MoveDrawingRequest(BaseModel):
+    workspace_id: str
+
+
 class SceneElement(BaseModel):
     """An Excalidraw element. Only the fields the merge relies on are checked;
     everything else is stored untouched."""

@@ -24,6 +24,9 @@ async def ensure_indexes(db: AsyncDatabase) -> None:
     )
     await db.memberships.create_index("user_id")
     await db.drawings.create_index([("workspace_id", 1), ("updated_at", -1)])
+    await db.invites.create_index("token_hash", unique=True)
+    await db.invites.create_index("expires_at", expireAfterSeconds=0)
+    await db.invites.create_index([("workspace_id", 1), ("email", 1)])
 
 
 def get_db(request: Request) -> AsyncDatabase:
