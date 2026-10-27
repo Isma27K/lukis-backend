@@ -1,0 +1,16 @@
+# Leaves Caddy out, for a server that already runs its own reverse proxy
+# (nginx…). Turn it on with this line in .env:
+#   COMPOSE_FILE=compose.yaml:compose.own-proxy.yaml
+# then point the proxy at FRONTEND_PORT; nginx.conf.example shows what it
+# needs to do.
+services:
+  caddy:
+    # Only started when asked for by name, so it never is.
+    profiles: [caddy]
+
+  frontend:
+    # Only this machine by default. If the proxy runs on another one, use
+    # e.g. 0.0.0.0:3000 and firewall it to the proxy: anything reaching this
+    # port can claim any X-Forwarded-For.
+    ports:
+      - "${FRONTEND_PORT:-127.0.0.1:3000}:3000"

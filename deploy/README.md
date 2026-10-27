@@ -4,10 +4,10 @@
 
 | Service    | What it does                                                        |
 | ---------- | ------------------------------------------------------------------- |
-| `caddy`    | The only published service (ports 80/443). HTTPS, compression.      |
+| `caddy`    | Ports 80/443: HTTPS, compression. Optional, see First deploy.       |
 | `frontend` | Next.js. Proxies `/api` and the live-editing WebSockets to backend. |
 | `backend`  | FastAPI. Logs JSON lines to stdout.                                 |
-| `mongo`    | MongoDB 8 with a password, data in the `mongo_data` volume.         |
+| `mongo`    | MongoDB 8, data in the `mongo_data` volume. Optional, likewise.     |
 | `backup`   | Backs MongoDB up to object storage once a day.                      |
 
 Images, thumbnails and backups live in your S3-compatible store (RustFS),
@@ -31,7 +31,8 @@ would need `platforms:` added to the workflows.
 ## First deploy
 
 1. Copy this `deploy` folder to the server (`compose.yaml`, `Caddyfile`,
-   `.env.example`).
+   `.env.example`, and for your own proxy or database `compose.own-proxy.yaml`,
+   `nginx.conf.example` and `compose.own-mongo.yaml`).
 
 2. Let the server read the private images. On GitHub, go to Settings →
    Developer settings → Personal access tokens → **Tokens (classic)**. Create
@@ -59,6 +60,22 @@ would need `platforms:` added to the workflows.
    cloudflared runs on the server), and turn on Cloudflare's "Always Use
    HTTPS". With a domain in `SITE_ADDRESS`, Caddy would redirect the tunnel's
    HTTP requests back to HTTPS and visitors land in a redirect loop.
+
+   With a reverse proxy the server already runs (nginx…), leave Caddy out:
+   uncomment `COMPOSE_FILE` (keeping `compose.own-proxy.yaml`) and
+   `FRONTEND_PORT` at the top of `.env`, and the frontend listens on
+   `127.0.0.1:3000` for the proxy. `nginx.conf.example` has what the proxy
+   must do: pass WebSockets through, accept 16 MB request bodies, and set
+   `X-Forwarded-For` to the visitor's address. If Caddy already ran on this
+   server, remove it first with `docker compose rm -sf caddy`.
+
+   With a MongoDB you already run, leave the bundled one out: put
+   `compose.own-mongo.yaml` in `COMPOSE_FILE` and set `MONGO_URL` (and
+   `MONGO_DB` if it isn't `lukis`). Its user needs `readWrite` on that
+   database; a single server is fine, no replica set needed. This uses
+   Compose's `!reset`, so it needs Docker Compose 2.24.4 or newer
+   (`docker compose version`). To move existing data over, run a backup
+   first and restore it after switching (see Backups).
 
 4. Start:
 

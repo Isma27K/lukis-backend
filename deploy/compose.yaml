@@ -1,6 +1,8 @@
 # Lukis in production: Caddy (HTTPS) -> Next.js -> FastAPI -> MongoDB.
 # Only Caddy is published; the rest talk over the compose network. Images,
 # thumbnails and database backups go to the S3-compatible store in .env.
+# compose.own-proxy.yaml swaps Caddy for a reverse proxy you already run, and
+# compose.own-mongo.yaml the bundled MongoDB for a database you already run.
 #
 # Runs the images CI publishes to ghcr.io (log in first; see README.md), so
 # the server needs only this folder. To build from source instead:
@@ -39,7 +41,8 @@ services:
     restart: unless-stopped
     env_file: .env
     environment: &backend-env
-      MONGO_URL: mongodb://${MONGO_USER:?set MONGO_USER in .env}:${MONGO_PASSWORD:?set MONGO_PASSWORD in .env}@mongo:27017/?authSource=admin
+      # The bundled database, unless .env sets MONGO_URL to your own.
+      MONGO_URL: ${MONGO_URL:-mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/?authSource=admin}
       FRONTEND_ORIGIN: ${PUBLIC_URL:?set PUBLIC_URL in .env}
     # So S3_ENDPOINT can reach storage on this server itself, as
     # http://host.docker.internal:<port>. Docker Desktop has it built in;
