@@ -43,6 +43,13 @@ class FileTooLargeError(DomainError):
     detail = "That file is too large"
 
 
+class EmailDisabledError(DomainError):
+    """Something that needs email, on a server without SMTP set up."""
+
+    status_code = 404
+    detail = "Email isn't set up on this server"
+
+
 class InvalidLinkError(DomainError):
     """An emailed link (verify, reset) that's unknown, used or expired."""
 

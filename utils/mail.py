@@ -1,5 +1,5 @@
-"""Outgoing email over SMTP, or into the log when no SMTP server is set up
-(local development), so links in emails can still be followed."""
+"""Outgoing email over SMTP. Optional: without an SMTP server the app runs
+with its email features (verification, password reset, invite emails) off."""
 
 import asyncio
 import logging
@@ -60,20 +60,13 @@ class SmtpMailer:
         await asyncio.to_thread(self._send, email)
 
 
-class LogMailer:
-    async def send(self, email: Email) -> None:
-        logger.info(
-            f"Email to {email.to} (not sent, SMTP isn't set up): "
-            f"{email.subject}\n\n{email.text}",
-            extra={"fields": {"to": email.to, "subject": email.subject}},
-        )
-
-
-def create_mailer(settings: Settings) -> Mailer:
+def create_mailer(settings: Settings) -> Mailer | None:
+    """None when no SMTP server is set up: then everything that needs email
+    (verification, password reset, invite emails) is switched off."""
     if settings.smtp_host:
         return SmtpMailer(settings)
-    logger.warning("SMTP_HOST isn't set: emails will only be written to the log")
-    return LogMailer()
+    logger.info("SMTP_HOST isn't set, so email features are off")
+    return None
 
 
 async def send_safely(mailer: Mailer, email: Email) -> None:
@@ -88,8 +81,9 @@ async def send_safely(mailer: Mailer, email: Email) -> None:
         )
 
 
-def get_mailer(request: Request) -> Mailer:
+def get_mailer(request: Request) -> Mailer | None:
     return request.app.state.mailer
 
 
-AppMailer = Annotated[Mailer, Depends(get_mailer)]
+# None means email is off; see create_mailer.
+AppMailer = Annotated[Mailer | None, Depends(get_mailer)]

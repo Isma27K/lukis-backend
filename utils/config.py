@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Largest image accepted, after the editor has downscaled it. Matches the
     # editor's own limit.
     max_file_bytes: int = 4 * 1024 * 1024
-    # Outgoing email. With no host, emails are only written to the log.
+    # Outgoing email. Optional: with no host, email features are switched off.
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

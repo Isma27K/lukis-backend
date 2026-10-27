@@ -8,7 +8,16 @@ from function.errors import DomainError, TooManyRequestsError
 from function.rate_limit import RateLimiter
 from function.realtime import Hub
 from middleware.csrf import require_json
-from routes import auth, drawings, files, health, invites, live, workspaces
+from routes import (
+    auth,
+    drawings,
+    features,
+    files,
+    health,
+    invites,
+    live,
+    workspaces,
+)
 from utils.config import Settings, get_settings
 from utils.db import create_client, ensure_indexes
 from utils.logs import log_requests, show_app_logs
@@ -56,6 +65,7 @@ def create_app(
     app.state.settings = settings
     # Images and thumbnails. Creating the client doesn't connect yet.
     app.state.storage = storage or S3Storage(settings)
+    # None when SMTP isn't set up, which switches email features off.
     app.state.mailer = mailer or create_mailer(settings)
     # Who's connected to which drawing, for live collaboration.
     app.state.live = Hub()
@@ -68,6 +78,7 @@ def create_app(
     app.add_exception_handler(DomainError, handle_domain_error)
     app.add_exception_handler(StorageError, handle_storage_error)
     app.include_router(health.router)
+    app.include_router(features.router)
     app.include_router(auth.router)
     app.include_router(workspaces.router)
     app.include_router(drawings.router)

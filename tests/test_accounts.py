@@ -11,6 +11,10 @@ async def me(client) -> dict:
     return (await client.get("/auth/me")).json()
 
 
+async def test_features_say_email_is_on(client):
+    assert (await client.get("/features")).json() == {"email": True}
+
+
 async def test_signup_sends_a_verification_link(make_client, mailer):
     client = await make_client()
     response = await client.post(

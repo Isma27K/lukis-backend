@@ -35,7 +35,7 @@ from function.auth import (
     verify_email,
 )
 from function.emails import password_reset_email, verification_email
-from function.errors import TooManyRequestsError
+from function.errors import EmailDisabledError, TooManyRequestsError
 from function.rate_limit import (
     LOGIN_FAILURES_PER_EMAIL,
     LOGIN_PER_IP,
@@ -115,7 +115,8 @@ async def register(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         )
     await _start_session(response, db, settings, user["_id"])
-    await _send_verification(background, db, mailer, settings, user, body.next)
+    if mailer:
+        await _send_verification(background, db, mailer, settings, user, body.next)
     return UserResponse.from_document(user)
 
 
@@ -169,6 +170,8 @@ async def resend_verification(
     settings: AppSettings,
     user: CurrentUser,
 ) -> None:
+    if mailer is None:
+        raise EmailDisabledError
     if user.get("email_verified_at") is not None:
         return
     limiter.check(VERIFY_RESEND_PER_USER, str(user["_id"]))
@@ -196,6 +199,8 @@ async def request_password_reset(
 ) -> None:
     """Always answers the same way, so it can't be used to find out which
     addresses have accounts."""
+    if mailer is None:
+        raise EmailDisabledError
     limiter.check(RESET_PER_IP, client_ip(request))
     email = normalize_email(body.email)
     if limiter.retry_after(RESET_PER_EMAIL, email):

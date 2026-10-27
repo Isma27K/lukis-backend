@@ -114,7 +114,8 @@ async def find_invite(
 async def accept_invite(
         db: AsyncDatabase,
         token: str,
-        user: UserDocument
+        user: UserDocument,
+        require_verified_email: bool,
 ) -> tuple[WorkspaceDocument, MembershipDocument]:
     invite, workspace = await find_invite(db, token)
 
@@ -122,8 +123,8 @@ async def accept_invite(
         raise ForbiddenError(f"This invite is for {invite['email']}")
 
     # Otherwise anyone could sign up with the invited address and take the
-    # place meant for its owner.
-    if user.get("email_verified_at") is None:
+    # place meant for its owner. Only possible when email is set up.
+    if require_verified_email and user.get("email_verified_at") is None:
         raise ForbiddenError("Confirm your email address before joining")
 
     # Someone who is already a member keeps the role they have.

@@ -4,6 +4,7 @@ from data.general.workspace import InvitePreviewResponse, WorkspaceResponse
 from function.invites import accept_invite, find_invite
 from middleware.auth import CurrentUser
 from utils.db import Database
+from utils.mail import AppMailer
 
 router = APIRouter(prefix="/invites", tags=["invites"])
 
@@ -25,7 +26,9 @@ async def invite_details(
 
 @router.post("/{token}/accept")
 async def join_workspace(
-    token: str, db: Database, user: CurrentUser
+    token: str, db: Database, mailer: AppMailer, user: CurrentUser
 ) -> WorkspaceResponse:
-    workspace, membership = await accept_invite(db, token, user)
+    workspace, membership = await accept_invite(
+        db, token, user, require_verified_email=mailer is not None
+    )
     return WorkspaceResponse.from_document(workspace, membership["role"])

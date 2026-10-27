@@ -17,6 +17,7 @@ def storage():
 
 @pytest.fixture
 def mailer():
+    """Email is on in tests unless a module overrides this to return None."""
     return MemoryMailer()
 
 
@@ -25,7 +26,8 @@ async def app(storage, mailer):
     # A fresh database per test, so test runs that overlap (say, one in the
     # IDE and one in a terminal) can't drop each other's data.
     db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
-    app = create_app(Settings(mongo_db=db_name), storage, mailer)
+    # No SMTP host, so a real mail server is never used even if .env has one.
+    app = create_app(Settings(mongo_db=db_name, smtp_host=""), storage, mailer)
     # httpx's ASGITransport doesn't run lifespan events, so run them here.
     async with app.router.lifespan_context(app):
         yield app

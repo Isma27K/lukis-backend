@@ -81,8 +81,17 @@ docker compose logs -f backend
 docker compose logs backend | grep '"level": "error"'
 ```
 
-Without SMTP configured, emails (verification, password reset, invites) are
-only written to the backend log, links included.
+## Email
+
+Email is optional. With the `SMTP_*` settings filled in, Lukis:
+
+- asks new users to confirm their address, and requires it before they join
+  a workspace
+- offers password reset
+- emails invite links
+
+Without `SMTP_HOST`, none of that appears. Admins copy invite links from the
+settings page and send them themselves.
 
 ## Backups
 

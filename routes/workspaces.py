@@ -160,19 +160,21 @@ async def new_invite(
     user: CurrentUser,
 ) -> CreatedInviteResponse:
     workspace, actor = await get_workspace(db, workspace_id, user, "admin")
-    # Each invite sends an email, so this can't become a spam cannon.
-    limiter.check(INVITES_PER_USER, str(user["_id"]))
+    if mailer:
+        # Each invite sends an email, so this can't become a spam cannon.
+        limiter.check(INVITES_PER_USER, str(user["_id"]))
     invite, token = await create_invite(db, workspace, actor, body.email, body.role)
-    message = invite_email(
-        settings.public_url,
-        invite["email"],
-        user["name"],
-        workspace["name"],
-        invite["role"],
-        token,
-    )
-    background.add_task(send_safely, mailer, message)
-    # The link comes back too, for sharing it some other way.
+    if mailer:
+        message = invite_email(
+            settings.public_url,
+            invite["email"],
+            user["name"],
+            workspace["name"],
+            invite["role"],
+            token,
+        )
+        background.add_task(send_safely, mailer, message)
+    # The link comes back too: the only way to pass it on without email.
     return CreatedInviteResponse(
         **InviteResponse.from_document(invite).model_dump(), token=token
     )
