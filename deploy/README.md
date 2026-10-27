@@ -53,6 +53,14 @@ would need `platforms:` added to the workflows.
    Caddy fetches certificates on first start. For a LAN-only setup use
    `SITE_ADDRESS=:80`, `PUBLIC_URL=http://<server-ip>` and `COOKIE_SECURE=false`.
 
+   Behind Cloudflare's proxy (orange cloud), set SSL/TLS to **Full (strict)**.
+   "Flexible" sends visitors in a redirect loop, since Caddy redirects
+   Cloudflare's plain-HTTP requests back to HTTPS. Cloudflare's proxy also
+   blocks one of Caddy's two ways to prove it owns the domain, so for the
+   first certificate switch the record to "DNS only" until
+   `docker compose logs caddy` says `certificate obtained successfully`, then
+   back to proxied.
+
 4. Start:
 
    ```sh
