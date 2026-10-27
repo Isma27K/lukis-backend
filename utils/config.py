@@ -1,9 +1,7 @@
 from functools import lru_cache
 from typing import Annotated, Literal
-from urllib.parse import urlsplit
 
 from fastapi import Depends, Request
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,16 +38,6 @@ class Settings(BaseSettings):
     # Defaults to s3_bucket.
     backup_bucket: str = ""
     backup_keep_days: int = 14
-
-    @field_validator("s3_endpoint")
-    @classmethod
-    def _endpoint_has_scheme(cls, value: str) -> str:
-        # Without the scheme there's no host to parse, and every storage call
-        # would fail later with a puzzling "No host specified".
-        endpoint = urlsplit(value)
-        if endpoint.scheme not in ("http", "https") or not endpoint.netloc:
-            raise ValueError(f"must look like http://host:port, got {value!r}")
-        return value
 
     @property
     def frontend_origins(self) -> list[str]:
