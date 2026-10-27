@@ -1,6 +1,6 @@
 # Deploying Lukis
 
-`compose.yaml` runs the whole app with Docker Compose:
+`compose.yaml` runs the whole app with Docker Compose, from images CI publishes:
 
 | Service    | What it does                                                        |
 | ---------- | ------------------------------------------------------------------- |
@@ -13,30 +13,39 @@
 Images, thumbnails and backups live in your S3-compatible store (RustFS),
 which stays where it is.
 
+## Where the images come from
+
+Each push to `main` runs CI in the frontend and backend repos. Once the
+checks pass, CI builds an image and pushes it to GitHub's container registry:
+
+- `ghcr.io/isma27k/lukis-frontend`
+- `ghcr.io/isma27k/lukis-backend`
+
+Each image is tagged `latest` and `sha-<short commit>`. The packages are
+private like the repos, and CI keeps the 10 most recent versions of each.
+The server only pulls them, so it needs nothing but this folder.
+
+The images are built for `linux/amd64`. An ARM server (such as a Raspberry Pi)
+would need `platforms:` added to the workflows.
+
 ## First deploy
 
-The frontend and backend checkouts need to sit side by side, with the
-Excalidraw clone next to them:
+1. Copy this `deploy` folder to the server (`compose.yaml`, `Caddyfile`,
+   `.env.example`).
 
-```
-lukis/
-  backend/     this repo (compose.yaml is in backend/deploy)
-  frontend/
-  excalidraw/  git clone https://github.com/excalidraw/excalidraw
-```
-
-1. Build the editor packages that the frontend image installs. They're
-   gitignored, so this is needed on every machine that builds the image:
+2. Let the server read the private images. On GitHub, go to Settings →
+   Developer settings → Personal access tokens → **Tokens (classic)**. Create
+   a token with only the `read:packages` scope, then on the server:
 
    ```sh
-   git -C excalidraw checkout "$(cat frontend/.excalidraw-ref)"
-   cd frontend && npm run excalidraw:build   # needs Node 24 and yarn 1
+   echo "<token>" | docker login ghcr.io -u Isma27K --password-stdin
    ```
 
-2. Configure:
+   Docker remembers the login in `~/.docker/config.json`.
+
+3. Configure:
 
    ```sh
-   cd backend/deploy
    cp .env.example .env    # then fill it in
    ```
 
@@ -44,10 +53,11 @@ lukis/
    Caddy fetches certificates on first start. For a LAN-only setup use
    `SITE_ADDRESS=:80`, `PUBLIC_URL=http://<server-ip>` and `COOKIE_SECURE=false`.
 
-3. Start:
+4. Start:
 
    ```sh
-   docker compose up -d --build
+   docker compose pull
+   docker compose up -d
    docker compose ps          # backend should become "healthy"
    ```
 
@@ -63,13 +73,36 @@ data files that 8.0 created.
 
 ## Updating
 
-```sh
-git -C backend pull && git -C frontend pull
-# Only if frontend/.excalidraw-ref changed:
-git -C excalidraw fetch && git -C excalidraw checkout "$(cat frontend/.excalidraw-ref)"
-(cd frontend && npm run excalidraw:build)
+Push to `main` and wait for CI to finish, then on the server:
 
-cd backend/deploy && docker compose up -d --build
+```sh
+docker compose pull && docker compose up -d
+```
+
+To pin a version or roll back, set `FRONTEND_TAG` / `BACKEND_TAG` in `.env` to
+a `sha-<short commit>` tag (listed under the repo's Packages on GitHub), then
+run the same command.
+
+## Building from source instead
+
+`compose.build.yaml` builds the images locally instead of pulling them. The
+frontend and backend checkouts need to sit side by side, with the Excalidraw
+clone next to them:
+
+```
+lukis/
+  backend/     this repo (compose files are in backend/deploy)
+  frontend/
+  excalidraw/  git clone https://github.com/excalidraw/excalidraw
+```
+
+```sh
+# The editor packages the frontend image installs; they're gitignored.
+git -C excalidraw checkout "$(cat frontend/.excalidraw-ref)"
+(cd frontend && npm run excalidraw:build)   # needs Node 24 and yarn 1
+
+cd backend/deploy
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 ## Logs

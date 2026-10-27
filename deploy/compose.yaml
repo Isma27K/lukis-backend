@@ -2,8 +2,9 @@
 # Only Caddy is published; the rest talk over the compose network. Images,
 # thumbnails and database backups go to the S3-compatible store in .env.
 #
-# Expects the frontend and backend checkouts side by side (../../frontend).
-# See README.md.
+# Runs the images CI publishes to ghcr.io (log in first; see README.md), so
+# the server needs only this folder. To build from source instead:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
 name: lukis
 
 services:
@@ -23,11 +24,9 @@ services:
     depends_on:
       - frontend
 
+  # Pinned with FRONTEND_TAG / BACKEND_TAG in .env, e.g. sha-1a2b3c4.
   frontend:
-    build:
-      context: ../../frontend
-      args:
-        BACKEND_URL: http://backend:8000
+    image: ghcr.io/isma27k/lukis-frontend:${FRONTEND_TAG:-latest}
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8000
@@ -36,7 +35,7 @@ services:
         condition: service_healthy
 
   backend:
-    build: ..
+    image: ghcr.io/isma27k/lukis-backend:${BACKEND_TAG:-latest}
     restart: unless-stopped
     env_file: .env
     environment: &backend-env
@@ -59,7 +58,7 @@ services:
   # Backs the database up to object storage every day, keeping
   # BACKUP_KEEP_DAYS days of them. Same image as the backend.
   backup:
-    build: ..
+    image: ghcr.io/isma27k/lukis-backend:${BACKEND_TAG:-latest}
     restart: unless-stopped
     command:
       [

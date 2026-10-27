@@ -1,0 +1,15 @@
+# Builds the images from source instead of pulling them from ghcr.io. Needs
+# the frontend and excalidraw checkouts next to this repo, with
+# `npm run excalidraw:build` run in frontend/ (see README.md).
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        BACKEND_URL: http://backend:8000
+  backend:
+    build: ..
+  backup:
+    build: ..
