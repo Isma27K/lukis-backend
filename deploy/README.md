@@ -51,6 +51,16 @@ lukis/
    docker compose ps          # backend should become "healthy"
    ```
 
+### If `mongo` exits right away
+
+MongoDB 8.0 refuses to start on Linux kernels 6.19 to 7.0.13
+([SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912)), with
+"Linux kernel versions 6.19 and newer has a known incompatibility" in
+`docker compose logs mongo`. Containers use the host's kernel, so check
+`uname -r` on the server. Either update the kernel (7.0.14+ works), or switch
+`compose.yaml` to `image: mongo:7.0` before the first start: 7.0 can't open
+data files that 8.0 created.
+
 ## Updating
 
 ```sh
