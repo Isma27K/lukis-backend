@@ -41,3 +41,20 @@ class InvalidFileError(DomainError):
 class FileTooLargeError(DomainError):
     status_code = 413
     detail = "That file is too large"
+
+
+class InvalidLinkError(DomainError):
+    """An emailed link (verify, reset) that's unknown, used or expired."""
+
+    status_code = 400
+    detail = "This link is invalid or has expired. Ask for a new one."
+
+
+class TooManyRequestsError(DomainError):
+    status_code = 429
+
+    def __init__(self, retry_after: int):
+        self.retry_after = retry_after
+        minutes = -(-retry_after // 60)
+        wait = f"{minutes} minutes" if minutes > 1 else "a minute"
+        super().__init__(f"Too many attempts. Try again in {wait}.")

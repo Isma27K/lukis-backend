@@ -1,4 +1,6 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from data.general.drawing import DrawingResponse, DrawingSummary, TrashedDrawing
 from data.general.workspace import (
@@ -15,7 +17,9 @@ from data.request.workspace import (
     UpdateWorkspaceRequest,
 )
 from function.drawings import create_drawing, list_drawings, list_trash
+from function.emails import invite_email
 from function.invites import create_invite, list_invites, revoke_invite
+from function.rate_limit import INVITES_PER_USER, RateLimiter, get_rate_limiter
 from function.workspaces import (
     change_member_role,
     create_workspace,
@@ -27,7 +31,9 @@ from function.workspaces import (
     rename_workspace,
 )
 from middleware.auth import CurrentUser
+from utils.config import AppSettings
 from utils.db import Database
+from utils.mail import AppMailer, send_safely
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -144,10 +150,29 @@ async def workspace_invites(
 
 @router.post("/{workspace_id}/invites", status_code=status.HTTP_201_CREATED)
 async def new_invite(
-    workspace_id: str, body: CreateInviteRequest, db: Database, user: CurrentUser
+    workspace_id: str,
+    body: CreateInviteRequest,
+    background: BackgroundTasks,
+    db: Database,
+    mailer: AppMailer,
+    limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
+    settings: AppSettings,
+    user: CurrentUser,
 ) -> CreatedInviteResponse:
     workspace, actor = await get_workspace(db, workspace_id, user, "admin")
+    # Each invite sends an email, so this can't become a spam cannon.
+    limiter.check(INVITES_PER_USER, str(user["_id"]))
     invite, token = await create_invite(db, workspace, actor, body.email, body.role)
+    message = invite_email(
+        settings.public_url,
+        invite["email"],
+        user["name"],
+        workspace["name"],
+        invite["role"],
+        token,
+    )
+    background.add_task(send_safely, mailer, message)
+    # The link comes back too, for sharing it some other way.
     return CreatedInviteResponse(
         **InviteResponse.from_document(invite).model_dump(), token=token
     )

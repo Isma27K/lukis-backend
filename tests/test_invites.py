@@ -3,10 +3,12 @@ from datetime import UTC, datetime, timedelta
 from tests.helpers import (
     JSON,
     add_member,
+    confirm_email,
     create_workspace,
     personal_workspace_id,
     signup,
 )
+from tests.mailer import link_in
 
 
 async def invite(client, workspace_id, email="bob@example.com", role="editor"):
@@ -22,12 +24,17 @@ async def owner_and_team(make_client):
     return owner, team["id"]
 
 
-async def test_invite_link_flow(make_client):
+async def test_invite_link_flow(make_client, mailer):
     owner, team = await owner_and_team(make_client)
     created = await invite(owner, team, email="  Bob@Example.com ")
     assert created.status_code == 201
     token = created.json()["token"]
     assert created.json()["email"] == "bob@example.com"
+
+    # The link is emailed, and also returned for sharing some other way.
+    [email] = mailer.to("bob@example.com")
+    assert email.subject == "Olga invited you to Team on Lukis"
+    assert link_in(email) == (f"/invite/{token}", {})
 
     pending = (await owner.get(f"/workspaces/{team}/invites")).json()
     assert [(i["email"], i["role"]) for i in pending] == [("bob@example.com", "editor")]
@@ -39,6 +46,12 @@ async def test_invite_link_flow(make_client):
     assert preview["workspace_name"] == "Team"
     assert preview["invited_by"] == "Olga"
     assert preview["role"] == "editor"
+
+    # Bob has to prove the address is his first.
+    unverified = await bob.post(f"/invites/{token}/accept", json={})
+    assert unverified.status_code == 403
+    assert "Confirm your email" in unverified.json()["detail"]
+    await confirm_email(bob, mailer, "bob@example.com")
 
     joined = await bob.post(f"/invites/{token}/accept", json={})
     assert joined.json() == {
@@ -127,11 +140,14 @@ async def test_expired_invites_do_nothing(app, make_client):
     assert (await owner.get(f"/workspaces/{team}/invites")).json() == []
 
 
-async def test_accepting_as_a_member_keeps_the_existing_role(app, make_client):
+async def test_accepting_as_a_member_keeps_the_existing_role(
+    app, make_client, mailer
+):
     owner, team = await owner_and_team(make_client)
     token = (await invite(owner, team, role="viewer")).json()["token"]
     bob = await make_client()
     bob_user = await signup(bob, "bob@example.com", "Bob")
+    await confirm_email(bob, mailer, "bob@example.com")
     # Added another way after the invite went out.
     await add_member(app, team, bob_user["id"], "admin")
 

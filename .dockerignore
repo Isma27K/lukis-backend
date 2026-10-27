@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.venv
+.env*
+!.env.example
+__pycache__
+.pytest_cache
+tests
+deploy
+data/**/__pycache__
+Dockerfile
+.dockerignore

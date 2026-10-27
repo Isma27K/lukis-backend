@@ -121,6 +121,11 @@ async def accept_invite(
     if invite["email"] != user["email"]:
         raise ForbiddenError(f"This invite is for {invite['email']}")
 
+    # Otherwise anyone could sign up with the invited address and take the
+    # place meant for its owner.
+    if user.get("email_verified_at") is None:
+        raise ForbiddenError("Confirm your email address before joining")
+
     # Someone who is already a member keeps the role they have.
     await db.memberships.update_one(
         {

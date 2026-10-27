@@ -1,0 +1,92 @@
+# Lukis in production: Caddy (HTTPS) -> Next.js -> FastAPI -> MongoDB.
+# Only Caddy is published; the rest talk over the compose network. Images,
+# thumbnails and database backups go to the S3-compatible store in .env.
+#
+# Expects the frontend and backend checkouts side by side (../../frontend).
+# See README.md.
+name: lukis
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build: ..
+    restart: unless-stopped
+    env_file: .env
+    environment: &backend-env
+      MONGO_URL: mongodb://${MONGO_USER:?set MONGO_USER in .env}:${MONGO_PASSWORD:?set MONGO_PASSWORD in .env}@mongo:27017/?authSource=admin
+      FRONTEND_ORIGIN: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # Backs the database up to object storage every day, keeping
+  # BACKUP_KEEP_DAYS days of them. Same image as the backend.
+  backup:
+    build: ..
+    restart: unless-stopped
+    command:
+      [
+        "python", "-m", "scripts.backup", "--log-config", "logging.json",
+        "run", "--every-hours", "24",
+      ]
+    env_file: .env
+    environment: *backend-env
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mongo_data:

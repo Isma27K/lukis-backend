@@ -9,10 +9,17 @@ from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.errors import DuplicateKeyError
 
 from data.database.session import SessionDocument
-from data.database.user import UserDocument
+from data.database.user import EmailTokenDocument, EmailTokenPurpose, UserDocument
+from function.errors import InvalidLinkError
 from function.workspaces import create_workspace
 
 password_hash = PasswordHash.recommended()
+
+# How long links sent by email work.
+EMAIL_TOKEN_TTL: dict[EmailTokenPurpose, timedelta] = {
+    "verify_email": timedelta(days=2),
+    "reset_password": timedelta(hours=1),
+}
 
 # Checked against when the email is unknown, so a failed login takes as long
 # whether or not the account exists.
@@ -50,6 +57,7 @@ async def register_user(
         "name": name,
         "password_hash": await _hash_password(password),
         "created_at": now,
+        "email_verified_at": None,
     }
     try:
         await db.users.insert_one(user)
@@ -100,3 +108,76 @@ async def get_session_user(db: AsyncDatabase, token: str) -> UserDocument | None
 
 async def delete_session(db: AsyncDatabase, token: str) -> None:
     await db.sessions.delete_one({"token_hash": hash_token(token)})
+
+
+async def create_email_token(
+    db: AsyncDatabase, user: UserDocument, purpose: EmailTokenPurpose
+) -> str:
+    """Returns the token for a link to email to the user. It replaces any
+    earlier link for the same purpose."""
+    await db.email_tokens.delete_many({"user_id": user["_id"], "purpose": purpose})
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(UTC)
+    document: EmailTokenDocument = {
+        "_id": ObjectId(),
+        "token_hash": hash_token(token),
+        "purpose": purpose,
+        "user_id": user["_id"],
+        "email": user["email"],
+        "created_at": now,
+        "expires_at": now + EMAIL_TOKEN_TTL[purpose],
+    }
+    await db.email_tokens.insert_one(document)
+    return token
+
+
+async def _use_email_token(
+    db: AsyncDatabase, token: str, purpose: EmailTokenPurpose
+) -> UserDocument:
+    """Spends a token (they work once) and returns its user."""
+    # The TTL index only sweeps about once a minute, so check expiry here too.
+    document = await db.email_tokens.find_one_and_delete(
+        {
+            "token_hash": hash_token(token),
+            "purpose": purpose,
+            "expires_at": {"$gt": datetime.now(UTC)},
+        }
+    )
+    if document is None:
+        raise InvalidLinkError
+    user = await db.users.find_one({"_id": document["user_id"]})
+    if user is None or user["email"] != document["email"]:
+        raise InvalidLinkError
+    return user
+
+
+async def verify_email(db: AsyncDatabase, token: str) -> UserDocument:
+    user = await _use_email_token(db, token, "verify_email")
+    if user.get("email_verified_at") is None:
+        verified_at = datetime.now(UTC)
+        await db.users.update_one(
+            {"_id": user["_id"]}, {"$set": {"email_verified_at": verified_at}}
+        )
+        user = {**user, "email_verified_at": verified_at}
+    return user
+
+
+async def find_user_by_email(db: AsyncDatabase, email: str) -> UserDocument | None:
+    return await db.users.find_one({"email": normalize_email(email)})
+
+
+async def reset_password(db: AsyncDatabase, token: str, password: str) -> None:
+    user = await _use_email_token(db, token, "reset_password")
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "password_hash": await _hash_password(password),
+                # Getting the link proves the address is theirs.
+                "email_verified_at": user.get("email_verified_at")
+                or datetime.now(UTC),
+            }
+        },
+    )
+    # Whoever knew the old password is logged out everywhere.
+    await db.sessions.delete_many({"user_id": user["_id"]})

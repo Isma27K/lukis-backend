@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, Request
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,10 +26,27 @@ class Settings(BaseSettings):
     # Largest image accepted, after the editor has downscaled it. Matches the
     # editor's own limit.
     max_file_bytes: int = 4 * 1024 * 1024
+    # Outgoing email. With no host, emails are only written to the log.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    # "starttls" (usually port 587), "ssl" (usually 465) or "none".
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
+    mail_from: str = "Lukis <noreply@localhost>"
+    # Database backups (scripts/backup.py) go to this bucket, under backups/.
+    # Defaults to s3_bucket.
+    backup_bucket: str = ""
+    backup_keep_days: int = 14
 
     @property
     def frontend_origins(self) -> list[str]:
         return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
+
+    @property
+    def public_url(self) -> str:
+        """Where links in emails point: the first frontend origin."""
+        return self.frontend_origins[0].rstrip("/")
 
 
 @lru_cache

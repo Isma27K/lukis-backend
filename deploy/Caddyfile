@@ -1,0 +1,22 @@
+# Everything goes to Next.js, which passes /api (including the live-editing
+# WebSockets) on to the backend. A domain in SITE_ADDRESS gets HTTPS
+# certificates automatically; ":80" serves plain HTTP.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Uploads are JSON. Images are at most 4 MB, a third more once encoded.
+	request_body {
+		max_size 16MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+
+	# Caddy replaces any X-Forwarded-For the visitor sent with their real
+	# address, which the backend's rate limits rely on.
+	reverse_proxy frontend:3000
+}

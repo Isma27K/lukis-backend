@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 
 from bson import ObjectId
 
+from tests.mailer import link_in
+
 PASSWORD = "correct horse battery"
 
 # The API refuses non-JSON mutations, and httpx sends no content type on DELETE.
@@ -14,6 +16,14 @@ async def signup(client, email="ada@example.com", name="Ada") -> dict:
     )
     assert response.status_code == 201
     return response.json()
+
+
+async def confirm_email(client, mailer, address: str) -> None:
+    """Follows the link in the latest verification email sent to `address`."""
+    email = next(e for e in reversed(mailer.to(address)) if "Confirm" in e.subject)
+    _, query = link_in(email)
+    response = await client.post("/auth/verify-email", json={"token": query["token"]})
+    assert response.status_code == 204
 
 
 async def personal_workspace_id(client) -> str:
