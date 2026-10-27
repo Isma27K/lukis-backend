@@ -1,4 +1,4 @@
-i wa# Lukis behind your own nginx instead of Caddy (see README.md). Add to the
+# Lukis behind your own nginx instead of Caddy (see README.md). Add to the
 # nginx config, then adjust server_name and the certificate lines.
 
 # Once, in the http block: WebSocket requests get "Connection: upgrade".
