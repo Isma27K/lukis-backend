@@ -22,6 +22,11 @@ from utils.storage import ObjectStorage
 
 router = APIRouter(prefix="/drawings", tags=["drawings"])
 
+# Removing a drawing from its workspace (trash, delete forever, move out) and
+# restoring it are kept to admins and owners. Editors change what's in a
+# drawing, but can't make it disappear.
+REMOVE_ROLE = "admin"
+
 
 @router.get("/{drawing_id}")
 async def drawing_details(
@@ -44,7 +49,9 @@ async def update_drawing(
 async def relocate_drawing(
     drawing_id: str, body: MoveDrawingRequest, db: Database, user: CurrentUser
 ) -> DrawingResponse:
-    drawing, _ = await get_drawing(db, drawing_id, user, "editor")
+    # Taking a drawing out of a workspace removes it for everyone there, and
+    # would let an editor delete it from a workspace they own.
+    drawing, _ = await get_drawing(db, drawing_id, user, REMOVE_ROLE)
     moved, membership = await move_drawing(db, drawing, user, body.workspace_id)
     return DrawingResponse.from_document_with_role(moved, membership["role"])
 
@@ -60,7 +67,7 @@ async def copy_drawing(
 
 @router.delete("/{drawing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def trash_drawing(drawing_id: str, db: Database, user: CurrentUser) -> None:
-    drawing, _ = await get_drawing(db, drawing_id, user, "editor")
+    drawing, _ = await get_drawing(db, drawing_id, user, REMOVE_ROLE)
     await delete_drawing(db, drawing, user)
 
 
@@ -69,18 +76,17 @@ async def untrash_drawing(
     drawing_id: str, db: Database, user: CurrentUser
 ) -> DrawingResponse:
     drawing, membership = await get_drawing(
-        db, drawing_id, user, "editor", trashed=True
+        db, drawing_id, user, REMOVE_ROLE, trashed=True
     )
     drawing = await restore_drawing(db, drawing)
     return DrawingResponse.from_document_with_role(drawing, membership["role"])
 
 
-# Can't be undone, so it takes an admin; editors can only move to the trash.
 @router.delete("/{drawing_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
 async def destroy_drawing(
     drawing_id: str, db: Database, storage: ObjectStorage, user: CurrentUser
 ) -> None:
-    drawing, _ = await get_drawing(db, drawing_id, user, "admin", trashed=True)
+    drawing, _ = await get_drawing(db, drawing_id, user, REMOVE_ROLE, trashed=True)
     await purge_drawing(db, storage, drawing)
 
 

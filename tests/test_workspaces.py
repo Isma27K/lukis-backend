@@ -156,7 +156,7 @@ async def test_unknown_members_are_404(app, make_client):
     assert (await remove(c["olga"], team, other["id"])).status_code == 404
 
 
-async def test_moving_drawings_needs_editor_on_both_sides(app, make_client):
+async def test_moving_drawings_needs_admin_out_and_editor_in(app, make_client):
     team, c, u = await team_with(app, make_client, ed="editor")
     ed = c["ed"]
     personal = await personal_workspace_id(ed)
@@ -181,3 +181,9 @@ async def test_moving_drawings_needs_editor_on_both_sides(app, make_client):
     team_drawings = (await c["olga"].get(f"/workspaces/{team}/drawings")).json()
     assert [d["id"] for d in team_drawings] == [drawing["id"]]
     assert (await ed.get(f"/workspaces/{personal}/drawings")).json() == []
+
+    # Taking it back out would remove it from the team, which takes an admin.
+    back_out = await ed.post(
+        f"/drawings/{drawing['id']}/move", json={"workspace_id": personal}
+    )
+    assert back_out.status_code == 403
