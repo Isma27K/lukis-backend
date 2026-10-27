@@ -41,6 +41,11 @@ services:
     environment: &backend-env
       MONGO_URL: mongodb://${MONGO_USER:?set MONGO_USER in .env}:${MONGO_PASSWORD:?set MONGO_PASSWORD in .env}@mongo:27017/?authSource=admin
       FRONTEND_ORIGIN: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+    # So S3_ENDPOINT can reach storage on this server itself, as
+    # http://host.docker.internal:<port>. Docker Desktop has it built in;
+    # plain Docker on Linux doesn't.
+    extra_hosts: &host-gateway
+      - host.docker.internal:host-gateway
     healthcheck:
       test:
         - CMD
@@ -67,6 +72,7 @@ services:
       ]
     env_file: .env
     environment: *backend-env
+    extra_hosts: *host-gateway
     depends_on:
       mongo:
         condition: service_healthy
