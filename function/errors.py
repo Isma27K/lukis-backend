@@ -29,3 +29,15 @@ class ConflictError(DomainError):
 
     status_code = 409
     detail = "That conflicts with a change someone else made"
+
+
+class InvalidFileError(DomainError):
+    """An upload that isn't a supported image."""
+
+    status_code = 422
+    detail = "That file type isn't supported"
+
+
+class FileTooLargeError(DomainError):
+    status_code = 413
+    detail = "That file is too large"

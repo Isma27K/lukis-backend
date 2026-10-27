@@ -1,4 +1,5 @@
 fastapi[standard]==0.162.0
 pwdlib[argon2]==0.3.1
 pydantic-settings==2.16.1
+minio==7.2.20
 pymongo==4.19.0

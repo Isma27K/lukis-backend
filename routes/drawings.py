@@ -11,11 +11,14 @@ from function.drawings import (
     duplicate_drawing,
     get_drawing,
     move_drawing,
+    purge_drawing,
     rename_drawing,
+    restore_drawing,
 )
 from function.scene import load_scene, save_scene
 from middleware.auth import CurrentUser
 from utils.db import Database
+from utils.storage import ObjectStorage
 
 router = APIRouter(prefix="/drawings", tags=["drawings"])
 
@@ -48,17 +51,37 @@ async def relocate_drawing(
 
 @router.post("/{drawing_id}/duplicate", status_code=status.HTTP_201_CREATED)
 async def copy_drawing(
-    drawing_id: str, db: Database, user: CurrentUser
+    drawing_id: str, db: Database, storage: ObjectStorage, user: CurrentUser
 ) -> DrawingResponse:
     drawing, membership = await get_drawing(db, drawing_id, user, "editor")
-    copy = await duplicate_drawing(db, drawing, user)
+    copy = await duplicate_drawing(db, storage, drawing, user)
     return DrawingResponse.from_document_with_role(copy, membership["role"])
 
 
 @router.delete("/{drawing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def trash_drawing(drawing_id: str, db: Database, user: CurrentUser) -> None:
     drawing, _ = await get_drawing(db, drawing_id, user, "editor")
-    await delete_drawing(db, drawing)
+    await delete_drawing(db, drawing, user)
+
+
+@router.post("/{drawing_id}/restore")
+async def untrash_drawing(
+    drawing_id: str, db: Database, user: CurrentUser
+) -> DrawingResponse:
+    drawing, membership = await get_drawing(
+        db, drawing_id, user, "editor", trashed=True
+    )
+    drawing = await restore_drawing(db, drawing)
+    return DrawingResponse.from_document_with_role(drawing, membership["role"])
+
+
+# Can't be undone, so it takes an admin; editors can only move to the trash.
+@router.delete("/{drawing_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def destroy_drawing(
+    drawing_id: str, db: Database, storage: ObjectStorage, user: CurrentUser
+) -> None:
+    drawing, _ = await get_drawing(db, drawing_id, user, "admin", trashed=True)
+    await purge_drawing(db, storage, drawing)
 
 
 @router.get("/{drawing_id}/scene")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from data.general.drawing import DrawingResponse, DrawingSummary
+from data.general.drawing import DrawingResponse, DrawingSummary, TrashedDrawing
 from data.general.workspace import (
     CreatedInviteResponse,
     InviteResponse,
@@ -14,7 +14,7 @@ from data.request.workspace import (
     UpdateMemberRequest,
     UpdateWorkspaceRequest,
 )
-from function.drawings import create_drawing, list_drawings
+from function.drawings import create_drawing, list_drawings, list_trash
 from function.invites import create_invite, list_invites, revoke_invite
 from function.workspaces import (
     change_member_role,
@@ -71,6 +71,17 @@ async def workspace_drawings(
     return [
         DrawingSummary.from_document(drawing)
         for drawing in await list_drawings(db, workspace["_id"])
+    ]
+
+
+@router.get("/{workspace_id}/trash")
+async def workspace_trash(
+    workspace_id: str, db: Database, user: CurrentUser
+) -> list[TrashedDrawing]:
+    workspace, _ = await get_workspace(db, workspace_id, user, "viewer")
+    return [
+        TrashedDrawing.from_documents(drawing, deleted_by)
+        for drawing, deleted_by in await list_trash(db, workspace["_id"])
     ]
 
 

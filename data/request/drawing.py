@@ -40,3 +40,18 @@ class SaveSceneRequest(BaseModel):
     # merges them into what it has.
     elements: list[SceneElement]
     app_state: dict[str, Any] | None = None
+
+
+# Uploads are JSON like every other mutation (see middleware/csrf.py), with the
+# bytes as a data URL, the form Excalidraw keeps files in anyway.
+DataUrl = Annotated[str, StringConstraints(pattern=r"^data:", max_length=16_000_000)]
+
+
+class UploadFileRequest(BaseModel):
+    data_url: DataUrl
+
+
+class SaveThumbnailRequest(BaseModel):
+    # The same picture rendered for each editor theme.
+    light: DataUrl
+    dark: DataUrl

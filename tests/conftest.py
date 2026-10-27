@@ -5,15 +5,21 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from main import create_app
+from tests.storage import MemoryStorage
 from utils.config import Settings
 
 
 @pytest.fixture
-async def app():
+def storage():
+    return MemoryStorage()
+
+
+@pytest.fixture
+async def app(storage):
     # A fresh database per test, so test runs that overlap (say, one in the
     # IDE and one in a terminal) can't drop each other's data.
     db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
-    app = create_app(Settings(mongo_db=db_name))
+    app = create_app(Settings(mongo_db=db_name), storage)
     # httpx's ASGITransport doesn't run lifespan events, so run them here.
     async with app.router.lifespan_context(app):
         yield app

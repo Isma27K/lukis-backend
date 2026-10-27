@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     # The site's origin(s), comma-separated. Live-collaboration WebSockets
     # opened from any other origin are refused.
     frontend_origin: str = "http://localhost:3000"
+    # S3-compatible storage (RustFS) for images and thumbnails. The browser
+    # never talks to it; files go through the API.
+    s3_endpoint: str = "http://localhost:9000"
+    s3_bucket: str = "lukis"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_region: str = "us-east-1"
+    # Largest image accepted, after the editor has downscaled it. Matches the
+    # editor's own limit.
+    max_file_bytes: int = 4 * 1024 * 1024
 
     @property
     def frontend_origins(self) -> list[str]:

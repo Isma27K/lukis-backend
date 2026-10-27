@@ -8,16 +8,27 @@ from data.database.user import UserDocument
 from data.database.workspace import MembershipDocument, Role
 from function.access import parse_id, require_role
 from function.errors import NotFoundError
+from function.files import copy_files
+from utils.storage import Storage, drawing_prefix
 
 # No pagination yet; plenty for a personal workspace.
 LIST_LIMIT = 500
 
 
 async def get_drawing(
-    db: AsyncDatabase, drawing_id: str, user: UserDocument, min_role: Role
+    db: AsyncDatabase,
+    drawing_id: str,
+    user: UserDocument,
+    min_role: Role,
+    trashed: bool = False,
 ) -> tuple[DrawingDocument, MembershipDocument]:
+    """A drawing the user can reach with at least min_role. Only drawings in
+    the trash are found with `trashed`, and only others without it."""
     drawing = await db.drawings.find_one(
-        {"_id": parse_id(drawing_id), "deleted_at": None}
+        {
+            "_id": parse_id(drawing_id),
+            "deleted_at": {"$ne": None} if trashed else None,
+        }
     )
     if drawing is None:
         raise NotFoundError
@@ -66,11 +77,13 @@ async def create_drawing(
 
 
 async def duplicate_drawing(
-    db: AsyncDatabase, drawing: DrawingDocument, user: UserDocument
+    db: AsyncDatabase, storage: Storage, drawing: DrawingDocument, user: UserDocument
 ) -> DrawingDocument:
     scene = await db.scenes.find_one({"_id": drawing["_id"]})
     title = f"Copy of {drawing['title']}"[:120]
-    return await create_drawing(db, drawing["workspace_id"], user, title, scene)
+    copy = await create_drawing(db, drawing["workspace_id"], user, title, scene)
+    await copy_files(db, storage, drawing, copy)
+    return {**copy, "thumbnail_version": drawing.get("thumbnail_version")}
 
 
 async def rename_drawing(
@@ -97,7 +110,50 @@ async def move_drawing(
     return {**drawing, "workspace_id": target_oid}, membership
 
 
-async def delete_drawing(db: AsyncDatabase, drawing: DrawingDocument) -> None:
+async def delete_drawing(
+    db: AsyncDatabase, drawing: DrawingDocument, user: UserDocument
+) -> None:
+    """Moves a drawing to the trash."""
     await db.drawings.update_one(
-        {"_id": drawing["_id"]}, {"$set": {"deleted_at": datetime.now(UTC)}}
+        {"_id": drawing["_id"]},
+        {"$set": {"deleted_at": datetime.now(UTC), "deleted_by": user["_id"]}},
     )
+
+
+async def list_trash(
+    db: AsyncDatabase, workspace_id: ObjectId
+) -> list[tuple[DrawingDocument, UserDocument | None]]:
+    """Trashed drawings, most recently deleted first, with who deleted them."""
+    drawings = (
+        await db.drawings.find(
+            {"workspace_id": workspace_id, "deleted_at": {"$ne": None}}
+        )
+        .sort("deleted_at", -1)
+        .to_list(LIST_LIMIT)
+    )
+    user_ids = {d["deleted_by"] for d in drawings if d.get("deleted_by")}
+    users = {
+        user["_id"]: user
+        for user in await db.users.find({"_id": {"$in": list(user_ids)}}).to_list()
+    }
+    return [(d, users.get(d.get("deleted_by"))) for d in drawings]
+
+
+async def restore_drawing(
+    db: AsyncDatabase, drawing: DrawingDocument
+) -> DrawingDocument:
+    changes = {"deleted_at": None, "deleted_by": None}
+    await db.drawings.update_one({"_id": drawing["_id"]}, {"$set": changes})
+    return {**drawing, **changes}
+
+
+async def purge_drawing(
+    db: AsyncDatabase, storage: Storage, drawing: DrawingDocument
+) -> None:
+    """Deletes a trashed drawing for good, with its scene and files."""
+    # Storage first: if it fails, the drawing stays in the trash to retry,
+    # rather than leaving files nothing points to.
+    await storage.delete_prefix(drawing_prefix(drawing["_id"]))
+    await db.drawings.delete_one({"_id": drawing["_id"]})
+    await db.scenes.delete_one({"_id": drawing["_id"]})
+    await db.files.delete_many({"drawing_id": drawing["_id"]})
