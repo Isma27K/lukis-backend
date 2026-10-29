@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import UTC, datetime, timedelta
 
-from tests.helpers import PASSWORD, confirm_email, signup
+from tests.helpers import PASSWORD, SETUP_CODE, confirm_email, signup
 from tests.mailer import link_in
 from utils.logs import JsonFormatter
 
@@ -12,7 +12,8 @@ async def me(client) -> dict:
 
 
 async def test_features_say_email_is_on(client):
-    assert (await client.get("/features")).json() == {"email": True}
+    features = (await client.get("/features")).json()
+    assert features == {"email": True, "registration": "setup"}
 
 
 async def test_signup_sends_a_verification_link(make_client, mailer):
@@ -24,6 +25,7 @@ async def test_signup_sends_a_verification_link(make_client, mailer):
             "name": "Ada",
             "password": PASSWORD,
             "next": "/invite/abc",
+            "setup_code": SETUP_CODE,
         },
     )
     assert response.json()["email_verified"] is False
@@ -179,7 +181,12 @@ async def test_a_failing_mail_server_doesnt_break_signup(client, mailer, caplog)
     with caplog.at_level(logging.ERROR, logger="lukis.mail"):
         response = await client.post(
             "/auth/register",
-            json={"email": "ada@example.com", "name": "Ada", "password": PASSWORD},
+            json={
+                "email": "ada@example.com",
+                "name": "Ada",
+                "password": PASSWORD,
+                "setup_code": SETUP_CODE,
+            },
         )
 
     assert response.status_code == 201

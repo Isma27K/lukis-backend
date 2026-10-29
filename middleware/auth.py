@@ -4,6 +4,8 @@ from fastapi import Cookie, Depends, HTTPException, status
 
 from data.database.user import UserDocument
 from function.auth import get_session_user
+from function.errors import ForbiddenError
+from function.site import is_site_owner
 from utils.db import Database
 
 SESSION_COOKIE = "lukis_session"
@@ -26,3 +28,14 @@ async def current_user(
 
 
 CurrentUser = Annotated[UserDocument, Depends(current_user)]
+
+
+# Checked against the database on every request; nothing the browser sends
+# can make someone the site owner.
+async def site_owner(db: Database, user: CurrentUser) -> UserDocument:
+    if not await is_site_owner(db, user):
+        raise ForbiddenError("Only the site owner can do that")
+    return user
+
+
+SiteOwner = Annotated[UserDocument, Depends(site_owner)]

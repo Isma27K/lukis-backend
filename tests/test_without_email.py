@@ -12,7 +12,8 @@ def mailer():
 
 
 async def test_features_say_email_is_off(client):
-    assert (await client.get("/features")).json() == {"email": False}
+    features = (await client.get("/features")).json()
+    assert features == {"email": False, "registration": "setup"}
 
 
 async def test_invites_work_without_verification(make_client):

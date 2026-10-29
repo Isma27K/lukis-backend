@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Defaults to s3_bucket.
     backup_bucket: str = ""
     backup_keep_days: int = 14
+    # The code the first account needs to register and become site owner.
+    # Without it a random one is printed in the logs at startup.
+    setup_code: str = ""
 
     @property
     def frontend_origins(self) -> list[str]:

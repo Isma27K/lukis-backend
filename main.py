@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from function.errors import DomainError, TooManyRequestsError
 from function.rate_limit import RateLimiter
 from function.realtime import Hub
+from function.site import ensure_site
 from middleware.csrf import require_json
 from routes import (
     auth,
@@ -16,6 +17,7 @@ from routes import (
     health,
     invites,
     live,
+    site,
     workspaces,
 )
 from utils.config import Settings, get_settings
@@ -58,6 +60,7 @@ def create_app(
         client = create_client(settings)
         app.state.db = client[settings.mongo_db]
         await ensure_indexes(app.state.db)
+        await ensure_site(app.state.db, settings)
         yield
         await client.close()
 
@@ -85,6 +88,7 @@ def create_app(
     app.include_router(files.router)
     app.include_router(invites.router)
     app.include_router(live.router)
+    app.include_router(site.router)
     return app
 
 

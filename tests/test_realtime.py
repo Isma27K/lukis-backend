@@ -12,7 +12,7 @@ import function.realtime as realtime
 from function.realtime import CloseCode
 from main import create_app
 from middleware.auth import SESSION_COOKIE
-from tests.helpers import PASSWORD, add_member
+from tests.helpers import PASSWORD, SETUP_CODE, add_member
 from utils.config import Settings
 
 FRONTEND = "http://frontend.test"
@@ -22,7 +22,9 @@ FRONTEND = "http://frontend.test"
 async def server():
     """A real server on a free port, so WebSockets go over actual connections."""
     db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
-    app = create_app(Settings(mongo_db=db_name, frontend_origin=FRONTEND))
+    app = create_app(
+        Settings(mongo_db=db_name, frontend_origin=FRONTEND, setup_code=SETUP_CODE)
+    )
     uvicorn_server = uvicorn.Server(
         uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning")
     )
@@ -86,7 +88,12 @@ async def signup(host: str, email: str, name: str) -> tuple[str, str]:
     async with AsyncClient(base_url=f"http://{host}") as http:
         response = await http.post(
             "/auth/register",
-            json={"email": email, "name": name, "password": PASSWORD},
+            json={
+                "email": email,
+                "name": name,
+                "password": PASSWORD,
+                "setup_code": SETUP_CODE,
+            },
         )
         return response.json()["id"], response.cookies[SESSION_COOKIE]
 

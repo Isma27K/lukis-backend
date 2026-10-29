@@ -85,6 +85,20 @@ would need `platforms:` added to the workflows.
    docker compose ps          # backend should become "healthy"
    ```
 
+5. Create your account. The first account becomes the site owner, and on a
+   fresh install it needs a one-time setup code, so a stranger who reaches
+   the site before you can't claim it. The backend prints the code when it
+   starts:
+
+   ```sh
+   docker compose logs backend | grep "setup code"
+   ```
+
+   Enter it on the sign-up page. A restart prints a new one until the owner
+   exists. Setting `SETUP_CODE` in `.env` uses that code instead and prints
+   nothing. See [Site owner and sign-up](#site-owner-and-sign-up) for what
+   the owner can do.
+
 ### If `mongo` exits right away
 
 MongoDB 8.0 refuses to start on Linux kernels 6.19 to 7.0.13
@@ -106,6 +120,30 @@ docker compose pull && docker compose up -d
 To pin a version or roll back, set `FRONTEND_TAG` / `BACKEND_TAG` in `.env` to
 a `sha-<short commit>` tag (listed under the repo's Packages on GitHub), then
 run the same command.
+
+## Site owner and sign-up
+
+The site owner gets "Site settings" in the user menu. Anyone can sign up until
+the owner switches that off there. After that, only people the owner invites
+can create an account: with a sign-up invite from Site settings, or a
+workspace invite the owner sends. Workspace invites from other members only
+work for people who already have an account. Everyone who has one can still
+log in.
+
+On an install from before there was a site owner, the oldest account becomes
+the owner when the backend starts, and sign-up stays open.
+
+If the owner is locked out, fix it from the server (there's no way to do this
+from the web):
+
+```sh
+docker compose exec backend python -m scripts.site show
+docker compose exec backend python -m scripts.site set-owner you@example.com
+docker compose exec backend python -m scripts.site registration open   # or closed
+```
+
+To hand the site to a new account while sign-up is closed, open it, register,
+`set-owner` that account and close it again.
 
 ## Building from source instead
 

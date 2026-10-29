@@ -1,13 +1,18 @@
 from datetime import UTC, datetime, timedelta
 
 from middleware.auth import SESSION_COOKIE
-
-PASSWORD = "correct horse battery"
+from tests.helpers import PASSWORD, SETUP_CODE
 
 
 async def register(client, email="ada@example.com", name="Ada"):
     return await client.post(
-        "/auth/register", json={"email": email, "name": name, "password": PASSWORD}
+        "/auth/register",
+        json={
+            "email": email,
+            "name": name,
+            "password": PASSWORD,
+            "setup_code": SETUP_CODE,
+        },
     )
 
 

@@ -5,6 +5,9 @@ from bson import ObjectId
 from tests.mailer import link_in
 
 PASSWORD = "correct horse battery"
+# What conftest sets as SETUP_CODE. The first account in each test needs it;
+# once there's a site owner it's ignored, so every sign-up can send it.
+SETUP_CODE = "TEST-SETUP-CODE"
 
 # The API refuses non-JSON mutations, and httpx sends no content type on DELETE.
 JSON = {"Content-Type": "application/json"}
@@ -12,7 +15,13 @@ JSON = {"Content-Type": "application/json"}
 
 async def signup(client, email="ada@example.com", name="Ada") -> dict:
     response = await client.post(
-        "/auth/register", json={"email": email, "name": name, "password": PASSWORD}
+        "/auth/register",
+        json={
+            "email": email,
+            "name": name,
+            "password": PASSWORD,
+            "setup_code": SETUP_CODE,
+        },
     )
     assert response.status_code == 201
     return response.json()

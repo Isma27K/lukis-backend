@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from main import create_app
+from tests.helpers import SETUP_CODE
 from tests.mailer import MemoryMailer
 from tests.storage import MemoryStorage
 from utils.config import Settings
@@ -27,7 +28,8 @@ async def app(storage, mailer):
     # IDE and one in a terminal) can't drop each other's data.
     db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
     # No SMTP host, so a real mail server is never used even if .env has one.
-    app = create_app(Settings(mongo_db=db_name, smtp_host=""), storage, mailer)
+    settings = Settings(mongo_db=db_name, smtp_host="", setup_code=SETUP_CODE)
+    app = create_app(settings, storage, mailer)
     # httpx's ASGITransport doesn't run lifespan events, so run them here.
     async with app.router.lifespan_context(app):
         yield app

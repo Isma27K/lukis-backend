@@ -28,6 +28,10 @@ class RegisterRequest(BaseModel):
     name: Name
     password: Password
     next: NextPath | None = None
+    # From an invite link; needed while sign-up is invite-only.
+    invite_token: Token | None = None
+    # From the server logs; needed by the first account on a fresh install.
+    setup_code: Annotated[str, StringConstraints(max_length=64)] | None = None
 
 
 class LoginRequest(BaseModel):

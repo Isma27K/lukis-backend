@@ -48,11 +48,15 @@ async def _verify_password(password: str, hashed: str) -> bool:
 
 
 async def register_user(
-    db: AsyncDatabase, email: str, name: str, password: str
+    db: AsyncDatabase,
+    email: str,
+    name: str,
+    password: str,
+    user_id: ObjectId | None = None,
 ) -> UserDocument:
     now = datetime.now(UTC)
     user: UserDocument = {
-        "_id": ObjectId(),
+        "_id": user_id or ObjectId(),
         "email": normalize_email(email),
         "name": name,
         "password_hash": await _hash_password(password),

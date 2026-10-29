@@ -13,6 +13,7 @@ from fastapi import (
 )
 
 from data.database.user import UserDocument
+from data.general.site import SignupInvitePreviewResponse
 from data.general.user import UserResponse
 from data.request.auth import (
     ConfirmPasswordResetRequest,
@@ -30,12 +31,12 @@ from function.auth import (
     delete_session,
     find_user_by_email,
     normalize_email,
-    register_user,
     reset_password,
     verify_email,
 )
 from function.emails import password_reset_email, verification_email
-from function.errors import EmailDisabledError, TooManyRequestsError
+from function.errors import EmailDisabledError, NotFoundError, TooManyRequestsError
+from function.invites import INVALID_INVITE
 from function.rate_limit import (
     LOGIN_FAILURES_PER_EMAIL,
     LOGIN_PER_IP,
@@ -48,6 +49,7 @@ from function.rate_limit import (
     client_ip,
     get_rate_limiter,
 )
+from function.site import find_signup_invite, is_site_owner, register_account
 from middleware.auth import SESSION_COOKIE, CurrentUser, SessionToken
 from utils.config import AppSettings, Settings
 from utils.db import Database
@@ -109,7 +111,14 @@ async def register(
 ) -> UserResponse:
     limiter.check(REGISTER_PER_IP, client_ip(request))
     try:
-        user = await register_user(db, body.email, body.name, body.password)
+        user, site_owner = await register_account(
+            db,
+            body.email,
+            body.name,
+            body.password,
+            invite_token=body.invite_token,
+            setup_code=body.setup_code,
+        )
     except EmailTakenError:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
@@ -117,7 +126,18 @@ async def register(
     await _start_session(response, db, settings, user["_id"])
     if mailer:
         await _send_verification(background, db, mailer, settings, user, body.next)
-    return UserResponse.from_document(user)
+    return UserResponse.from_document(user, site_owner)
+
+
+# Public, for the sign-up page to fill in the invited address. No rate limit,
+# like GET /invites/{token}: tokens are 256 bits, and Next.js calls this from
+# its server, so a limit per IP would lump every visitor together.
+@router.get("/signup-invites/{token}")
+async def signup_invite(token: str, db: Database) -> SignupInvitePreviewResponse:
+    email = await find_signup_invite(db, token)
+    if email is None:
+        raise NotFoundError(INVALID_INVITE)
+    return SignupInvitePreviewResponse(email=email)
 
 
 @router.post("/login")
@@ -143,7 +163,7 @@ async def login(
             status.HTTP_401_UNAUTHORIZED, "Invalid email or password"
         )
     await _start_session(response, db, settings, user["_id"])
-    return UserResponse.from_document(user)
+    return UserResponse.from_document(user, await is_site_owner(db, user))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -156,8 +176,8 @@ async def logout(
 
 
 @router.get("/me")
-async def me(user: CurrentUser) -> UserResponse:
-    return UserResponse.from_document(user)
+async def me(db: Database, user: CurrentUser) -> UserResponse:
+    return UserResponse.from_document(user, await is_site_owner(db, user))
 
 
 @router.post("/verify-email/resend", status_code=status.HTTP_204_NO_CONTENT)

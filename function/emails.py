@@ -48,6 +48,19 @@ def password_reset_email(public_url: str, to: str, name: str, token: str) -> Ema
     )
 
 
+def signup_invite_email(public_url: str, to: str, inviter: str, token: str) -> Email:
+    link = _link(public_url, "/register", invite=token)
+    return Email(
+        to=to,
+        subject=f"{inviter} invited you to Lukis",
+        text=(
+            f"{inviter} invited you to create an account on Lukis.\n\n"
+            f"Sign up here:\n\n{link}\n\n"
+            f"The invite works for 7 days, only for {to}.\n"
+        ),
+    )
+
+
 def invite_email(
     public_url: str,
     to: str,
