@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-from data.general.drawing import DrawingResponse, DrawingSummary, TrashedDrawing
+from data.general.drawing import DrawingResponse, ListedDrawing, TrashedDrawing
 from data.general.workspace import (
     CreatedInviteResponse,
     InviteResponse,
@@ -72,11 +72,11 @@ async def remove_workspace(workspace_id: str, db: Database, user: CurrentUser) -
 @router.get("/{workspace_id}/drawings")
 async def workspace_drawings(
     workspace_id: str, db: Database, user: CurrentUser
-) -> list[DrawingSummary]:
+) -> list[ListedDrawing]:
     workspace, _ = await get_workspace(db, workspace_id, user, "viewer")
     return [
-        DrawingSummary.from_document(drawing)
-        for drawing in await list_drawings(db, workspace["_id"])
+        ListedDrawing.from_documents(drawing, updated_by)
+        for drawing, updated_by in await list_drawings(db, workspace["_id"])
     ]
 
 

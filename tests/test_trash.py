@@ -1,3 +1,5 @@
+import base64
+
 from bson import ObjectId
 
 from tests.helpers import JSON, add_member, element, personal_workspace_id, signup
@@ -46,6 +48,22 @@ async def test_trash_and_restore(app, make_client):
     # Only drawings in the trash can be restored.
     again = await owner.post(f"/drawings/{drawing_id}/restore", json={})
     assert again.status_code == 404
+
+
+async def test_trashed_drawings_keep_their_thumbnails(app, make_client):
+    owner, admin, _, viewer, _, drawing_id = await setup_team(app, make_client)
+    png = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\nx").decode()
+    await owner.put(
+        f"/drawings/{drawing_id}/thumbnail", json={"light": png, "dark": png}
+    )
+    assert (await admin.delete(f"/drawings/{drawing_id}", headers=JSON)).status_code == 204
+
+    thumbnail = await viewer.get(f"/drawings/{drawing_id}/thumbnail/light")
+    assert thumbnail.status_code == 200
+    outsider = await make_client()
+    await signup(outsider, email="eve@example.com", name="Eve")
+    hidden = await outsider.get(f"/drawings/{drawing_id}/thumbnail/light")
+    assert hidden.status_code == 404
 
 
 async def test_only_admins_and_owners_delete_or_restore(app, make_client):

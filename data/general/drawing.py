@@ -27,6 +27,31 @@ class DrawingSummary(BaseModel):
         )
 
 
+class Editor(BaseModel):
+    """Someone who changed a drawing."""
+
+    id: str
+    name: str
+
+    @classmethod
+    def from_document(cls, user: UserDocument) -> "Editor":
+        return cls(id=str(user["_id"]), name=user["name"])
+
+
+class ListedDrawing(DrawingSummary):
+    # Whoever changed it last, if they still exist.
+    updated_by: Editor | None
+
+    @classmethod
+    def from_documents(
+        cls, drawing: DrawingDocument, updated_by: UserDocument | None
+    ) -> "ListedDrawing":
+        return cls(
+            **DrawingSummary.from_document(drawing).model_dump(),
+            updated_by=Editor.from_document(updated_by) if updated_by else None,
+        )
+
+
 class TrashedDrawing(DrawingSummary):
     deleted_at: datetime
     # The name of whoever moved it to the trash, if they still exist.

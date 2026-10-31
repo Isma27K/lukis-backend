@@ -1,3 +1,5 @@
+from bson import ObjectId
+
 import function.scene as scene_module
 from tests.helpers import JSON, add_member, element, personal_workspace_id, signup
 
@@ -138,6 +140,28 @@ async def test_save_gives_up_with_409_when_always_racing(client, monkeypatch):
     monkeypatch.setattr(scene_module, "load_scene", always_race)
 
     assert (await save(client, drawing["id"], [element("a")])).status_code == 409
+
+
+async def test_list_shows_who_changed_each_drawing_last(app, make_client):
+    owner, editor = await make_client(), await make_client()
+    owner_user = await signup(owner)
+    editor_user = await signup(editor, email="bo@example.com", name="Bo")
+    workspace_id = await personal_workspace_id(owner)
+    drawing = await create(owner, workspace_id)
+    await add_member(app, workspace_id, editor_user["id"], "editor")
+
+    async def last_editor():
+        listed = (await owner.get(f"/workspaces/{workspace_id}/drawings")).json()
+        return listed[0]["updated_by"]
+
+    assert await last_editor() == {"id": owner_user["id"], "name": "Ada"}
+
+    await save(editor, drawing["id"], [element("a")])
+    assert await last_editor() == {"id": editor_user["id"], "name": "Bo"}
+
+    # A deleted account leaves no name behind.
+    await app.state.db.users.delete_one({"_id": ObjectId(editor_user["id"])})
+    assert await last_editor() is None
 
 
 async def test_outsiders_get_404_everywhere(make_client):

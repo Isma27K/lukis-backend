@@ -98,5 +98,6 @@ async def download_thumbnail(
     storage: ObjectStorage,
     user: CurrentUser,
 ) -> Response:
-    drawing, _ = await get_drawing(db, drawing_id, user, "viewer")
+    # The trash shows thumbnails too.
+    drawing, _ = await get_drawing(db, drawing_id, user, "viewer", trashed=None)
     return _image_response(*await load_thumbnail(storage, drawing, theme))

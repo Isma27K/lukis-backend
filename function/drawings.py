@@ -20,30 +20,44 @@ async def get_drawing(
     drawing_id: str,
     user: UserDocument,
     min_role: Role,
-    trashed: bool = False,
+    trashed: bool | None = False,
 ) -> tuple[DrawingDocument, MembershipDocument]:
     """A drawing the user can reach with at least min_role. Only drawings in
-    the trash are found with `trashed`, and only others without it."""
-    drawing = await db.drawings.find_one(
-        {
-            "_id": parse_id(drawing_id),
-            "deleted_at": {"$ne": None} if trashed else None,
-        }
-    )
+    the trash are found with `trashed`, only others without it, and either
+    with `trashed=None`."""
+    query: dict = {"_id": parse_id(drawing_id)}
+    if trashed is not None:
+        query["deleted_at"] = {"$ne": None} if trashed else None
+    drawing = await db.drawings.find_one(query)
     if drawing is None:
         raise NotFoundError
     membership = await require_role(db, drawing["workspace_id"], user, min_role)
     return drawing, membership
 
 
+async def users_by_id(
+    db: AsyncDatabase, user_ids: set[ObjectId]
+) -> dict[ObjectId, UserDocument]:
+    """The users among these ids whose accounts still exist."""
+    if not user_ids:
+        return {}
+    users = await db.users.find({"_id": {"$in": list(user_ids)}}).to_list()
+    return {user["_id"]: user for user in users}
+
+
 async def list_drawings(
     db: AsyncDatabase, workspace_id: ObjectId
-) -> list[DrawingDocument]:
-    return (
+) -> list[tuple[DrawingDocument, UserDocument | None]]:
+    """Drawings, most recently changed first, with who changed them last."""
+    drawings = (
         await db.drawings.find({"workspace_id": workspace_id, "deleted_at": None})
         .sort("updated_at", -1)
         .to_list(LIST_LIMIT)
     )
+    users = await users_by_id(
+        db, {d["updated_by"] for d in drawings if d.get("updated_by")}
+    )
+    return [(d, users.get(d.get("updated_by"))) for d in drawings]
 
 
 async def create_drawing(
@@ -131,11 +145,9 @@ async def list_trash(
         .sort("deleted_at", -1)
         .to_list(LIST_LIMIT)
     )
-    user_ids = {d["deleted_by"] for d in drawings if d.get("deleted_by")}
-    users = {
-        user["_id"]: user
-        for user in await db.users.find({"_id": {"$in": list(user_ids)}}).to_list()
-    }
+    users = await users_by_id(
+        db, {d["deleted_by"] for d in drawings if d.get("deleted_by")}
+    )
     return [(d, users.get(d.get("deleted_by"))) for d in drawings]
 
 
