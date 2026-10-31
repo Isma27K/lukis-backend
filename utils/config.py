@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # "starttls" (usually port 587), "ssl" (usually 465) or "none".
     smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
     mail_from: str = "Lukis <noreply@localhost>"
+    # Version history: while a drawing is being edited, its scene is kept
+    # about this often, and these automatic snapshots are kept this long.
+    # Named versions stay until someone deletes them.
+    snapshot_interval_minutes: int = 10
+    version_retention_days: int = 30
     # Database backups (scripts/backup.py) go to this bucket, under backups/.
     # Defaults to s3_bucket.
     backup_bucket: str = ""

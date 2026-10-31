@@ -45,3 +45,6 @@ class SceneDocument(TypedDict):
     app_state: dict[str, Any]
     # Bumped on every save; writes only land if it hasn't moved since the read.
     rev: int
+    # When the version history last took an automatic snapshot. Missing from
+    # drawings that have never had one.
+    snapshot_at: NotRequired[datetime | None]

@@ -25,6 +25,9 @@ async def ensure_indexes(db: AsyncDatabase) -> None:
     await db.memberships.create_index("user_id")
     await db.drawings.create_index([("workspace_id", 1), ("updated_at", -1)])
     await db.files.create_index([("drawing_id", 1), ("file_id", 1)], unique=True)
+    await db.versions.create_index([("drawing_id", 1), ("created_at", -1)])
+    # Named versions have no expires_at, so only automatic snapshots go.
+    await db.versions.create_index("expires_at", expireAfterSeconds=0)
     await db.email_tokens.create_index("token_hash", unique=True)
     await db.email_tokens.create_index("expires_at", expireAfterSeconds=0)
     await db.email_tokens.create_index([("user_id", 1), ("purpose", 1)])

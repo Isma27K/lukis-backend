@@ -6,6 +6,8 @@ from pymongo.asynchronous.database import AsyncDatabase
 from data.database.drawing import DrawingDocument, SceneDocument
 from data.database.user import UserDocument
 from function.errors import ConflictError
+from function.versions import maybe_auto_snapshot
+from utils.config import Settings
 
 Element = dict[str, Any]
 
@@ -48,6 +50,7 @@ async def load_scene(db: AsyncDatabase, drawing: DrawingDocument) -> SceneDocume
 
 async def save_scene(
     db: AsyncDatabase,
+    settings: Settings,
     drawing: DrawingDocument,
     user: UserDocument,
     elements: list[Element],
@@ -57,6 +60,7 @@ async def save_scene(
 
     Uses optimistic concurrency instead of transactions: the write only lands
     if nobody else saved since we read, otherwise we re-read and merge again.
+    Every so often the scene it replaced goes into the version history.
     """
     for _ in range(MAX_SAVE_ATTEMPTS):
         scene = await load_scene(db, drawing)
@@ -75,5 +79,6 @@ async def save_scene(
                 {"_id": drawing["_id"]},
                 {"$set": {"updated_by": user["_id"], "updated_at": now}},
             )
+            await maybe_auto_snapshot(db, settings, drawing, scene, now)
             return scene["rev"] + 1
     raise ConflictError("Someone else is saving at the same moment, try again")

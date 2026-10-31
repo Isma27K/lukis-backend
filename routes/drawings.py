@@ -17,6 +17,7 @@ from function.drawings import (
 )
 from function.scene import load_scene, save_scene
 from middleware.auth import CurrentUser
+from utils.config import AppSettings
 from utils.db import Database
 from utils.storage import ObjectStorage
 
@@ -100,9 +101,13 @@ async def drawing_scene(
 
 @router.put("/{drawing_id}/scene")
 async def update_scene(
-    drawing_id: str, body: SaveSceneRequest, db: Database, user: CurrentUser
+    drawing_id: str,
+    body: SaveSceneRequest,
+    db: Database,
+    settings: AppSettings,
+    user: CurrentUser,
 ) -> SaveSceneResponse:
     drawing, _ = await get_drawing(db, drawing_id, user, "editor")
     elements = [element.model_dump() for element in body.elements]
-    rev = await save_scene(db, drawing, user, elements, body.app_state)
+    rev = await save_scene(db, settings, drawing, user, elements, body.app_state)
     return SaveSceneResponse(rev=rev)

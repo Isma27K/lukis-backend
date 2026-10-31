@@ -19,6 +19,15 @@ class MoveDrawingRequest(BaseModel):
     workspace_id: str
 
 
+class CreateVersionRequest(BaseModel):
+    # Without a name it's a checkpoint that expires like automatic snapshots.
+    name: Title | None = None
+
+
+class RenameVersionRequest(BaseModel):
+    name: Title
+
+
 class SceneElement(BaseModel):
     """An Excalidraw element. Only the fields the merge relies on are checked;
     everything else is stored untouched."""
