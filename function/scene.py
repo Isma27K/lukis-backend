@@ -1,10 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
 from data.database.drawing import DrawingDocument, SceneDocument
-from data.database.user import UserDocument
 from function.errors import ConflictError
 from function.versions import maybe_auto_snapshot
 from utils.config import Settings
@@ -52,11 +52,12 @@ async def save_scene(
     db: AsyncDatabase,
     settings: Settings,
     drawing: DrawingDocument,
-    user: UserDocument,
+    editor_id: ObjectId | None,
     elements: list[Element],
     app_state: dict[str, Any] | None,
 ) -> int:
     """Merges elements into the stored scene and returns the new rev.
+    `editor_id` is who made the change, None for a guest on a public link.
 
     Uses optimistic concurrency instead of transactions: the write only lands
     if nobody else saved since we read, otherwise we re-read and merge again.
@@ -77,7 +78,7 @@ async def save_scene(
         if result.matched_count:
             await db.drawings.update_one(
                 {"_id": drawing["_id"]},
-                {"$set": {"updated_by": user["_id"], "updated_at": now}},
+                {"$set": {"updated_by": editor_id, "updated_at": now}},
             )
             await maybe_auto_snapshot(db, settings, drawing, scene, now)
             return scene["rev"] + 1

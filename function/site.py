@@ -261,15 +261,26 @@ async def register_account(
     return user, admission.setup_code_hash is not None
 
 
-async def set_registration_open(
-    db: AsyncDatabase, owner: UserDocument, registration_open: bool
+def public_links_enabled(site: SiteDocument) -> bool:
+    return site.get("public_links", True)
+
+
+_SETTING_LOGS = {
+    "registration_open": ("Sign-up opened", "Sign-up closed"),
+    "public_links": ("Public links turned on", "Public links turned off"),
+}
+
+
+async def change_site_settings(
+    db: AsyncDatabase, owner: UserDocument, changes: dict[str, bool]
 ) -> SiteDocument:
+    """Applies the owner's changes to `registration_open` and `public_links`."""
     # Only while they're still the owner, in case that changed meanwhile.
     site = await db.site.find_one_and_update(
         {"_id": SITE_ID, "owner_id": owner["_id"]},
         {
             "$set": {
-                "registration_open": registration_open,
+                **changes,
                 "updated_at": datetime.now(UTC),
                 "updated_by": owner["_id"],
             }
@@ -278,10 +289,12 @@ async def set_registration_open(
     )
     if site is None:
         raise ForbiddenError
-    logger.info(
-        f"Sign-up {'opened' if registration_open else 'closed'} by {owner['email']}",
-        extra={"fields": {"user_id": str(owner["_id"])}},
-    )
+    for setting, value in changes.items():
+        on, off = _SETTING_LOGS[setting]
+        logger.info(
+            f"{on if value else off} by {owner['email']}",
+            extra={"fields": {"user_id": str(owner["_id"])}},
+        )
     return site
 
 

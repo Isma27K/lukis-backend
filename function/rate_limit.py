@@ -32,6 +32,10 @@ VERIFY_RESEND_PER_USER = Limit("verify-user", 3, 15 * 60)
 INVITES_PER_USER = Limit("invite-user", 30, 60 * 60)
 # Using a link from an email (verify, reset).
 TOKEN_USE_PER_IP = Limit("token-ip", 30, 60 * 60)
+# Passwords on public links: every attempt per address, and wrong ones per
+# link, against guessing from many addresses.
+SHARE_UNLOCK_PER_IP = Limit("share-unlock-ip", 20, 15 * 60)
+SHARE_UNLOCK_FAILURES_PER_LINK = Limit("share-unlock-link", 100, 15 * 60)
 
 # Forget keys that have been quiet this long; longer than any window above.
 _FORGET_AFTER = 2 * 60 * 60

@@ -24,6 +24,13 @@ class ForbiddenError(DomainError):
     detail = "You don't have permission to do that"
 
 
+class PasswordRequiredError(DomainError):
+    """A public link with a password that this browser hasn't unlocked."""
+
+    status_code = 401
+    detail = "This link needs a password"
+
+
 class ConflictError(DomainError):
     """The request clashes with the current state, e.g. removing the last owner."""
 

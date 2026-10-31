@@ -39,11 +39,11 @@ def hash_token(token: str) -> str:
 
 
 # Argon2 takes ~80ms of CPU, so it runs off the event loop.
-async def _hash_password(password: str) -> str:
+async def hash_password(password: str) -> str:
     return await asyncio.to_thread(password_hash.hash, password)
 
 
-async def _verify_password(password: str, hashed: str) -> bool:
+async def verify_password(password: str, hashed: str) -> bool:
     return await asyncio.to_thread(password_hash.verify, password, hashed)
 
 
@@ -59,7 +59,7 @@ async def register_user(
         "_id": user_id or ObjectId(),
         "email": normalize_email(email),
         "name": name,
-        "password_hash": await _hash_password(password),
+        "password_hash": await hash_password(password),
         "created_at": now,
         "email_verified_at": None,
     }
@@ -77,9 +77,9 @@ async def authenticate(
 ) -> UserDocument | None:
     user = await db.users.find_one({"email": normalize_email(email)})
     if user is None:
-        await _verify_password(password, _DUMMY_HASH)
+        await verify_password(password, _DUMMY_HASH)
         return None
-    if not await _verify_password(password, user["password_hash"]):
+    if not await verify_password(password, user["password_hash"]):
         return None
     return user
 
@@ -176,7 +176,7 @@ async def reset_password(db: AsyncDatabase, token: str, password: str) -> None:
         {"_id": user["_id"]},
         {
             "$set": {
-                "password_hash": await _hash_password(password),
+                "password_hash": await hash_password(password),
                 # Getting the link proves the address is theirs.
                 "email_verified_at": user.get("email_verified_at")
                 or datetime.now(UTC),

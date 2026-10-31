@@ -60,7 +60,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 Limiter = Annotated[RateLimiter, Depends(get_rate_limiter)]
 
 
-def _cookie_options(settings: Settings) -> dict:
+def cookie_options(settings: Settings) -> dict:
     return {
         "httponly": True,
         "samesite": "lax",
@@ -78,7 +78,7 @@ async def _start_session(
         SESSION_COOKIE,
         token,
         max_age=int(lifetime.total_seconds()),
-        **_cookie_options(settings),
+        **cookie_options(settings),
     )
 
 
@@ -172,7 +172,7 @@ async def logout(
 ) -> None:
     if token:
         await delete_session(db, token)
-    response.delete_cookie(SESSION_COOKIE, **_cookie_options(settings))
+    response.delete_cookie(SESSION_COOKIE, **cookie_options(settings))
 
 
 @router.get("/me")
@@ -249,4 +249,4 @@ async def confirm_password_reset(
     limiter.check(TOKEN_USE_PER_IP, client_ip(request))
     await reset_password(db, body.token, body.password)
     # Every session of the account was ended, this browser's included.
-    response.delete_cookie(SESSION_COOKIE, **_cookie_options(settings))
+    response.delete_cookie(SESSION_COOKIE, **cookie_options(settings))

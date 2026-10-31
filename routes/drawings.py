@@ -109,5 +109,7 @@ async def update_scene(
 ) -> SaveSceneResponse:
     drawing, _ = await get_drawing(db, drawing_id, user, "editor")
     elements = [element.model_dump() for element in body.elements]
-    rev = await save_scene(db, settings, drawing, user, elements, body.app_state)
+    rev = await save_scene(
+        db, settings, drawing, user["_id"], elements, body.app_state
+    )
     return SaveSceneResponse(rev=rev)

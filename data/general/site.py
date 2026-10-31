@@ -3,14 +3,19 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from data.database.site import SignupInviteDocument, SiteDocument
+from function.site import public_links_enabled
 
 
 class SiteSettingsResponse(BaseModel):
     registration_open: bool
+    public_links: bool
 
     @classmethod
     def from_document(cls, site: SiteDocument) -> "SiteSettingsResponse":
-        return cls(registration_open=site["registration_open"])
+        return cls(
+            registration_open=site["registration_open"],
+            public_links=public_links_enabled(site),
+        )
 
 
 class SignupInviteResponse(BaseModel):

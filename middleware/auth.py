@@ -30,6 +30,16 @@ async def current_user(
 CurrentUser = Annotated[UserDocument, Depends(current_user)]
 
 
+# For routes anyone can use, which still credit a logged-in user.
+async def optional_user(
+    db: Database, session_token: SessionToken = None
+) -> UserDocument | None:
+    return await get_session_user(db, session_token) if session_token else None
+
+
+OptionalUser = Annotated[UserDocument | None, Depends(optional_user)]
+
+
 # Checked against the database on every request; nothing the browser sends
 # can make someone the site owner.
 async def site_owner(db: Database, user: CurrentUser) -> UserDocument:

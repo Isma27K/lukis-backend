@@ -13,7 +13,7 @@ async def me(client) -> dict:
 
 async def test_features_say_email_is_on(client):
     features = (await client.get("/features")).json()
-    assert features == {"email": True, "registration": "setup"}
+    assert features == {"email": True, "registration": "setup", "public_links": True}
 
 
 async def test_signup_sends_a_verification_link(make_client, mailer):

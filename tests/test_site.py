@@ -37,7 +37,7 @@ async def owner_with_sign_up_closed(make_client):
     owner = await make_client()
     await signup(owner, "olga@example.com", "Olga")
     closed = await owner.patch("/site/settings", json={"registration_open": False})
-    assert closed.json() == {"registration_open": False}
+    assert closed.json()["registration_open"] is False
     return owner
 
 
@@ -179,7 +179,7 @@ async def test_only_the_site_owner_reaches_site_settings(make_client):
     await signup(owner, "olga@example.com", "Olga")
     await signup(member, "bob@example.com", "Bob")
 
-    assert (await owner.get("/site/settings")).json() == {"registration_open": True}
+    assert (await owner.get("/site/settings")).json()["registration_open"] is True
     created = await owner.post("/site/invites", json={"email": "c@example.com"})
     invite_id = created.json()["id"]
 
@@ -193,7 +193,7 @@ async def test_only_the_site_owner_reaches_site_settings(make_client):
         ]
         for response in await asyncio.gather(*requests):
             assert response.status_code == status
-    assert (await owner.get("/site/settings")).json() == {"registration_open": True}
+    assert (await owner.get("/site/settings")).json()["registration_open"] is True
     assert len((await owner.get("/site/invites")).json()) == 1
 
     # Like every change, it has to be JSON, so a cross-site form can't send it.
@@ -217,7 +217,7 @@ async def test_closed_sign_up_turns_strangers_away(app, make_client):
     assert await app.state.db.users.count_documents({}) == users
 
     reopened = await owner.patch("/site/settings", json={"registration_open": True})
-    assert reopened.json() == {"registration_open": True}
+    assert reopened.json()["registration_open"] is True
     assert (await register(stranger, "eve@example.com")).status_code == 201
 
 

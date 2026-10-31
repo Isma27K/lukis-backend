@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from urllib.parse import urlencode
 
 import pytest
 import uvicorn
@@ -235,5 +236,99 @@ async def test_removed_members_are_cut_off(team, monkeypatch):
 
     await ed.reader
     assert ed.socket.close_code == CloseCode.FORBIDDEN
+    assert [p["name"] for p in (await olga.next("peers"))["peers"]] == ["Olga"]
+    assert olga.queue("scene").empty()
+
+
+async def share_link(team, access: str, **settings) -> str:
+    """Olga turns on the drawing's public link; returns its token."""
+    async with AsyncClient(
+        base_url=f"http://{team['host']}",
+        cookies={SESSION_COOKIE: team["tokens"]["olga"]},
+    ) as olga:
+        response = await olga.put(
+            f"/drawings/{team['drawing_id']}/share",
+            json={"enabled": True, "access": access, **settings},
+        )
+        return response.json()["token"]
+
+
+async def open_guest(host: str, token: str, name: str = "", origin=FRONTEND):
+    return await connect(
+        f"ws://{host}/share/{token}/live?{urlencode({'name': name})}",
+        origin=origin,
+    )
+
+
+async def test_guests_join_through_a_public_link(team):
+    olga, _ = await team["open"]("olga")
+    token = await share_link(team, "edit")
+
+    guest = Peer(await open_guest(team["host"], token, name="  Ada   Lovelace "))
+    welcome = await guest.next("welcome")
+    assert welcome["role"] == "editor"
+    me = next(p for p in welcome["peers"] if p["id"] == welcome["id"])
+    assert me["name"] == "Ada Lovelace"
+    assert me["guest"] is True
+    assert me["userId"] == f"guest-{welcome['id']}"
+    peers = (await olga.next("peers"))["peers"]
+    assert {(p["name"], p["guest"]) for p in peers} == {
+        ("Olga", False),
+        ("Ada Lovelace", True),
+    }
+
+    await guest.send(type="scene", elements=[{"id": "g", "version": 1}])
+    assert (await olga.next("scene"))["elements"] == [{"id": "g", "version": 1}]
+
+    nameless = Peer(await open_guest(team["host"], token))
+    welcome = await nameless.next("welcome")
+    me = next(p for p in welcome["peers"] if p["id"] == welcome["id"])
+    assert me["name"] == "Guest"
+    await guest.close()
+    await nameless.close()
+
+
+async def test_view_link_guests_cannot_change_the_scene(team):
+    olga, _ = await team["open"]("olga")
+    token = await share_link(team, "view")
+    guest = Peer(await open_guest(team["host"], token, name="Vee"))
+    welcome = await guest.next("welcome")
+    assert welcome["role"] == "viewer"
+
+    await guest.send(type="scene", elements=[{"id": "a", "version": 9}])
+    await guest.send(type="pointer", pointer={"x": 0, "y": 0})
+
+    assert (await olga.next("pointer"))["id"] == welcome["id"]
+    assert olga.queue("scene").empty()
+    await guest.close()
+
+
+async def test_guests_need_a_working_unlocked_link(team):
+    host = team["host"]
+    token = await share_link(team, "edit", password="hunter22")
+
+    cases = [
+        (token, FRONTEND, CloseCode.NOT_AUTHENTICATED),
+        ("x" * 24, FRONTEND, CloseCode.NOT_FOUND),
+        (token, "http://evil.test", CloseCode.FORBIDDEN),
+    ]
+    for target, origin, expected in cases:
+        socket = await open_guest(host, target, origin=origin)
+        assert await close_code(socket) == expected
+
+
+async def test_turning_a_link_off_cuts_guests_off(team, monkeypatch):
+    olga, _ = await team["open"]("olga")
+    token = await share_link(team, "edit")
+    guest = Peer(await open_guest(team["host"], token))
+    await guest.next("welcome")
+    await olga.next("peers")  # The guest arriving.
+    monkeypatch.setattr(realtime, "ROLE_RECHECK_SECONDS", 0)
+
+    await share_link(team, "edit", enabled=False)
+    await guest.send(type="scene", elements=[{"id": "a", "version": 1}])
+
+    await guest.reader
+    assert guest.socket.close_code == CloseCode.FORBIDDEN
     assert [p["name"] for p in (await olga.next("peers"))["peers"]] == ["Olga"]
     assert olga.queue("scene").empty()

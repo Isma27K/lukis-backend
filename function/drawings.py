@@ -9,6 +9,7 @@ from data.database.workspace import MembershipDocument, Role
 from function.access import parse_id, require_role
 from function.errors import NotFoundError
 from function.files import copy_files
+from function.share import delete_links
 from utils.storage import Storage, drawing_prefix
 
 # No pagination yet; plenty for a personal workspace.
@@ -162,7 +163,8 @@ async def restore_drawing(
 async def purge_drawing(
     db: AsyncDatabase, storage: Storage, drawing: DrawingDocument
 ) -> None:
-    """Deletes a trashed drawing for good, with its scene, files and history."""
+    """Deletes a trashed drawing for good, with its scene, files, history and
+    public link."""
     # Storage first: if it fails, the drawing stays in the trash to retry,
     # rather than leaving files nothing points to.
     await storage.delete_prefix(drawing_prefix(drawing["_id"]))
@@ -170,3 +172,4 @@ async def purge_drawing(
     await db.scenes.delete_one({"_id": drawing["_id"]})
     await db.files.delete_many({"drawing_id": drawing["_id"]})
     await db.versions.delete_many({"drawing_id": drawing["_id"]})
+    await delete_links(db, drawing["_id"])

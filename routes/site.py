@@ -11,11 +11,11 @@ from data.request.site import CreateSignupInviteRequest, UpdateSiteSettingsReque
 from function.emails import signup_invite_email
 from function.rate_limit import INVITES_PER_USER, RateLimiter, get_rate_limiter
 from function.site import (
+    change_site_settings,
     create_signup_invite,
     get_site,
     list_signup_invites,
     revoke_signup_invite,
-    set_registration_open,
 )
 from middleware.auth import SiteOwner
 from utils.config import AppSettings
@@ -37,8 +37,9 @@ async def update_site_settings(
         db: Database,
         owner: SiteOwner
 ) -> SiteSettingsResponse:
-    site = await set_registration_open(db, owner, body.registration_open)
-    return SiteSettingsResponse.from_document(site)
+    changes = body.model_dump(exclude_none=True)
+    site = await change_site_settings(db, owner, changes) if changes else None
+    return SiteSettingsResponse.from_document(site or await get_site(db))
 
 
 @router.get("/invites")

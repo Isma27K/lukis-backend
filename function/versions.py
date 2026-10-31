@@ -27,7 +27,7 @@ async def _insert_version(
     drawing: DrawingDocument,
     scene: SceneDocument,
     created_at: datetime,
-    created_by: ObjectId,
+    created_by: ObjectId | None,
     name: str | None,
     expires_at: datetime | None,
 ) -> VersionDocument:
@@ -93,7 +93,9 @@ async def list_versions(
         .sort([("created_at", -1), ("_id", -1)])
         .to_list(LIST_LIMIT)
     )
-    users = await users_by_id(db, {v["created_by"] for v in versions})
+    users = await users_by_id(
+        db, {v["created_by"] for v in versions if v["created_by"]}
+    )
     return [(v, users.get(v["created_by"])) for v in versions]
 
 
@@ -111,7 +113,9 @@ async def get_version(
 async def version_author(
     db: AsyncDatabase, version: VersionDocument
 ) -> UserDocument | None:
-    """Who made the version, if their account still exists."""
+    """Who made the version, if it was a member whose account still exists."""
+    if version["created_by"] is None:
+        return None
     return await db.users.find_one({"_id": version["created_by"]})
 
 

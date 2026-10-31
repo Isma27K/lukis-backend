@@ -17,6 +17,7 @@ from routes import (
     health,
     invites,
     live,
+    share,
     site,
     versions,
     workspaces,
@@ -87,6 +88,7 @@ def create_app(
     app.include_router(workspaces.router)
     app.include_router(drawings.router)
     app.include_router(versions.router)
+    app.include_router(share.router)
     app.include_router(files.router)
     app.include_router(invites.router)
     app.include_router(live.router)

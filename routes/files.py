@@ -22,7 +22,7 @@ router = APIRouter(prefix="/drawings", tags=["files"])
 FileId = Annotated[str, Path(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 
 
-def _image_response(data: bytes, mime_type: str) -> Response:
+def image_response(data: bytes, mime_type: str) -> Response:
     return Response(
         data,
         media_type=mime_type,
@@ -53,7 +53,13 @@ async def upload_file(
 ) -> None:
     drawing, _ = await get_drawing(db, drawing_id, user, "editor")
     await save_file(
-        db, storage, drawing, user, file_id, body.data_url, settings.max_file_bytes
+        db,
+        storage,
+        drawing,
+        user["_id"],
+        file_id,
+        body.data_url,
+        settings.max_file_bytes,
     )
 
 
@@ -66,7 +72,7 @@ async def download_file(
     user: CurrentUser,
 ) -> Response:
     drawing, _ = await get_drawing(db, drawing_id, user, "viewer")
-    return _image_response(*await load_file(db, storage, drawing, file_id))
+    return image_response(*await load_file(db, storage, drawing, file_id))
 
 
 @router.put("/{drawing_id}/thumbnail", status_code=status.HTTP_204_NO_CONTENT)
@@ -100,4 +106,4 @@ async def download_thumbnail(
 ) -> Response:
     # The trash shows thumbnails too.
     drawing, _ = await get_drawing(db, drawing_id, user, "viewer", trashed=None)
-    return _image_response(*await load_thumbnail(storage, drawing, theme))
+    return image_response(*await load_thumbnail(storage, drawing, theme))

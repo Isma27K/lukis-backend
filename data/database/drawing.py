@@ -10,7 +10,8 @@ class DrawingDocument(TypedDict):
     title: str
     created_by: ObjectId
     created_at: datetime
-    updated_by: ObjectId
+    # None when the last change came from a guest on a public link.
+    updated_by: ObjectId | None
     updated_at: datetime
     # Set when moved to the trash; trashed drawings are hidden everywhere but
     # the trash itself.
@@ -32,7 +33,8 @@ class FileDocument(TypedDict):
     file_id: str
     mime_type: str
     size: int
-    created_by: ObjectId
+    # None for files added by a guest on a public link.
+    created_by: ObjectId | None
     created_at: datetime
 
 

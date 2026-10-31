@@ -10,7 +10,6 @@ from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.errors import DuplicateKeyError
 
 from data.database.drawing import DrawingDocument, FileDocument
-from data.database.user import UserDocument
 from function.errors import FileTooLargeError, InvalidFileError, NotFoundError
 from utils.storage import Storage, file_key, thumbnail_key
 
@@ -62,11 +61,12 @@ async def save_file(
     db: AsyncDatabase,
     storage: Storage,
     drawing: DrawingDocument,
-    user: UserDocument,
+    editor_id: ObjectId | None,
     file_id: str,
     data_url: str,
     max_bytes: int,
 ) -> None:
+    """Stores an image; `editor_id` is None for a guest on a public link."""
     mime_type, data = decode_data_url(data_url, IMAGE_TYPES, max_bytes)
     # File ids are content hashes, so a file that's already stored is the same
     # file; the first upload wins and the object never changes.
@@ -82,7 +82,7 @@ async def save_file(
         "file_id": file_id,
         "mime_type": mime_type,
         "size": len(data),
-        "created_by": user["_id"],
+        "created_by": editor_id,
         "created_at": datetime.now(UTC),
     }
     try:

@@ -19,6 +19,9 @@ class SiteDocument(TypedDict):
     # Whether anyone may sign up. When False, only an invite from the site
     # owner lets someone create an account.
     registration_open: bool
+    # Whether drawings can be shared through public links. Missing on sites
+    # from before public links, where they're on.
+    public_links: NotRequired[bool]
     # SHA-256 of the one-time code the first account needs, printed in the
     # logs at startup. Only there while owner_id is None.
     setup_code_hash: NotRequired[str]
