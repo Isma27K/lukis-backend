@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.helpers import create_workspace, signup
+from tests.helpers import PASSWORD, create_workspace, signup
 
 
 @pytest.fixture
@@ -44,3 +44,17 @@ async def test_email_only_actions_are_unavailable(client):
 
     assert [reset.status_code, resend.status_code] == [404, 404]
     assert reset.json()["detail"] == "Email isn't set up on this server"
+
+
+async def test_account_changes_work_without_email(make_client):
+    ada, bo = await make_client(), await make_client()
+    await signup(ada)
+    await signup(bo, "bo@example.com", "Bo")
+
+    changed = await bo.post(
+        "/account/password",
+        json={"current_password": PASSWORD, "new_password": "another password"},
+    )
+    deleted = await bo.post("/account/delete", json={"password": "another password"})
+
+    assert [changed.status_code, deleted.status_code] == [204, 204]

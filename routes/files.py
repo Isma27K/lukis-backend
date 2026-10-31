@@ -22,14 +22,16 @@ router = APIRouter(prefix="/drawings", tags=["files"])
 FileId = Annotated[str, Path(pattern=r"^[A-Za-z0-9_-]{1,128}$")]
 
 
-def image_response(data: bytes, mime_type: str) -> Response:
+def image_response(data: bytes, mime_type: str, public: bool = False) -> Response:
+    """`public` for images anyone may see, which shared caches can keep."""
     return Response(
         data,
         media_type=mime_type,
         headers={
             # File URLs never change content: files are keyed by content hash,
-            # and thumbnail URLs carry their version.
-            "Cache-Control": "private, max-age=31536000, immutable",
+            # and thumbnail and picture URLs carry their version.
+            "Cache-Control": f"{'public' if public else 'private'}, "
+            "max-age=31536000, immutable",
             # These come from users and are served from the site's own origin,
             # and an SVG can carry scripts: never render one as a page.
             "Content-Security-Policy": (

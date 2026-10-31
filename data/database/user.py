@@ -14,6 +14,9 @@ class UserDocument(TypedDict):
     # When the user followed the link emailed to them; missing or None until
     # then (accounts from before verification existed have no field at all).
     email_verified_at: NotRequired[datetime | None]
+    # Changes with every new profile picture (epoch ms); missing or None
+    # without one.
+    avatar_version: NotRequired[int | None]
 
 
 EmailTokenPurpose = Literal["verify_email", "reset_password"]

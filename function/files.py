@@ -35,6 +35,12 @@ MAX_THUMBNAIL_BYTES = 1024 * 1024
 _DATA_URL = re.compile(r"data:([\w.+-]+/[\w.+-]+)(?:;[^,;]*)*;base64,(.*)", re.DOTALL)
 
 
+def _size(max_bytes: int) -> str:
+    if max_bytes < 1024 * 1024:
+        return f"{max_bytes // 1024} KB"
+    return f"{max_bytes // 1024 // 1024} MB"
+
+
 def decode_data_url(
     data_url: str, allowed_types: set[str], max_bytes: int
 ) -> tuple[str, bytes]:
@@ -47,13 +53,13 @@ def decode_data_url(
         raise InvalidFileError
     # Checked before decoding, so oversized uploads cost no extra memory.
     if len(match.group(2)) * 3 // 4 > max_bytes + 2:
-        raise FileTooLargeError(f"Files can be at most {max_bytes // 1024 // 1024} MB")
+        raise FileTooLargeError(f"Files can be at most {_size(max_bytes)}")
     try:
         data = base64.b64decode(match.group(2), validate=True)
     except binascii.Error as error:
         raise InvalidFileError("Expected a base64 data URL") from error
     if len(data) > max_bytes:
-        raise FileTooLargeError(f"Files can be at most {max_bytes // 1024 // 1024} MB")
+        raise FileTooLargeError(f"Files can be at most {_size(max_bytes)}")
     return mime_type, data
 
 

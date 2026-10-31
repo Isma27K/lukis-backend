@@ -33,10 +33,15 @@ class Editor(BaseModel):
 
     id: str
     name: str
+    avatar_version: int | None
 
     @classmethod
     def from_document(cls, user: UserDocument) -> "Editor":
-        return cls(id=str(user["_id"]), name=user["name"])
+        return cls(
+            id=str(user["_id"]),
+            name=user["name"],
+            avatar_version=user.get("avatar_version"),
+        )
 
 
 class ListedDrawing(DrawingSummary):

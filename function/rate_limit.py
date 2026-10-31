@@ -30,6 +30,9 @@ RESET_PER_IP = Limit("reset-ip", 10, 60 * 60)
 RESET_PER_EMAIL = Limit("reset-email", 3, 60 * 60)
 VERIFY_RESEND_PER_USER = Limit("verify-user", 3, 15 * 60)
 INVITES_PER_USER = Limit("invite-user", 30, 60 * 60)
+# Wrong passwords when changing it or deleting the account, per user, so a
+# stolen session can't be used to guess the password.
+PASSWORD_FAILURES_PER_USER = Limit("password-user", 10, 15 * 60)
 # Using a link from an email (verify, reset).
 TOKEN_USE_PER_IP = Limit("token-ip", 30, 60 * 60)
 # Passwords on public links: every attempt per address, and wrong ones per

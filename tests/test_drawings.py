@@ -154,10 +154,18 @@ async def test_list_shows_who_changed_each_drawing_last(app, make_client):
         listed = (await owner.get(f"/workspaces/{workspace_id}/drawings")).json()
         return listed[0]["updated_by"]
 
-    assert await last_editor() == {"id": owner_user["id"], "name": "Ada"}
+    assert await last_editor() == {
+        "id": owner_user["id"],
+        "name": "Ada",
+        "avatar_version": None,
+    }
 
     await save(editor, drawing["id"], [element("a")])
-    assert await last_editor() == {"id": editor_user["id"], "name": "Bo"}
+    assert await last_editor() == {
+        "id": editor_user["id"],
+        "name": "Bo",
+        "avatar_version": None,
+    }
 
     # A deleted account leaves no name behind.
     await app.state.db.users.delete_one({"_id": ObjectId(editor_user["id"])})

@@ -36,6 +36,7 @@ class MemberResponse(BaseModel):
     email: str
     role: Role
     joined_at: datetime
+    avatar_version: int | None
 
     @classmethod
     def from_documents(
@@ -47,6 +48,7 @@ class MemberResponse(BaseModel):
             email=user["email"],
             role=membership["role"],
             joined_at=membership["created_at"],
+            avatar_version=user.get("avatar_version"),
         )
 
 

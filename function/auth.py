@@ -21,6 +21,11 @@ EMAIL_TOKEN_TTL: dict[EmailTokenPurpose, timedelta] = {
     "reset_password": timedelta(hours=1),
 }
 
+# How often a session's last_used_at is updated: often enough for "active 5
+# minutes ago", without a write on every request.
+SESSION_TOUCH_INTERVAL = timedelta(minutes=5)
+MAX_USER_AGENT = 512
+
 # Checked against when the email is unknown, so a failed login takes as long
 # whether or not the account exists.
 _DUMMY_HASH = password_hash.hash(secrets.token_urlsafe())
@@ -85,7 +90,11 @@ async def authenticate(
 
 
 async def create_session(
-    db: AsyncDatabase, user_id: ObjectId, lifetime: timedelta
+    db: AsyncDatabase,
+    user_id: ObjectId,
+    lifetime: timedelta,
+    user_agent: str | None = None,
+    ip: str | None = None,
 ) -> str:
     token = secrets.token_urlsafe(32)
     now = datetime.now(UTC)
@@ -95,18 +104,27 @@ async def create_session(
         "user_id": user_id,
         "created_at": now,
         "expires_at": now + lifetime,
+        "user_agent": user_agent[:MAX_USER_AGENT] if user_agent else None,
+        "ip": ip,
+        "last_used_at": now,
     }
     await db.sessions.insert_one(session)
     return token
 
 
 async def get_session_user(db: AsyncDatabase, token: str) -> UserDocument | None:
+    now = datetime.now(UTC)
     # The TTL index only sweeps about once a minute, so check expiry here too.
     session = await db.sessions.find_one(
-        {"token_hash": hash_token(token), "expires_at": {"$gt": datetime.now(UTC)}}
+        {"token_hash": hash_token(token), "expires_at": {"$gt": now}}
     )
     if session is None:
         return None
+    last_used = session.get("last_used_at")
+    if last_used is None or now - last_used > SESSION_TOUCH_INTERVAL:
+        await db.sessions.update_one(
+            {"_id": session["_id"]}, {"$set": {"last_used_at": now}}
+        )
     return await db.users.find_one({"_id": session["user_id"]})
 
 

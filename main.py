@@ -10,6 +10,7 @@ from function.realtime import Hub
 from function.site import ensure_site
 from middleware.csrf import require_json
 from routes import (
+    account,
     auth,
     drawings,
     features,
@@ -19,6 +20,7 @@ from routes import (
     live,
     share,
     site,
+    users,
     versions,
     workspaces,
 )
@@ -85,6 +87,8 @@ def create_app(
     app.include_router(health.router)
     app.include_router(features.router)
     app.include_router(auth.router)
+    app.include_router(account.router)
+    app.include_router(users.router)
     app.include_router(workspaces.router)
     app.include_router(drawings.router)
     app.include_router(versions.router)

@@ -180,6 +180,19 @@ async def test_members_see_each_other_and_each_others_changes(team):
     assert "name" not in relayed
 
 
+async def test_peers_carry_their_picture_version(team):
+    await team["app"].state.db.users.update_one(
+        {"email": "olga@example.com"}, {"$set": {"avatar_version": 1234}}
+    )
+
+    _, welcome = await team["open"]("olga")
+    _, ed_welcome = await team["open"]("ed")
+
+    pictures = {p["name"]: p["avatarVersion"] for p in ed_welcome["peers"]}
+    assert pictures == {"Olga": 1234, "Ed": None}
+    assert welcome["peers"][0]["avatarVersion"] == 1234
+
+
 async def test_viewers_cannot_change_the_scene(team):
     olga, _ = await team["open"]("olga")
     vic, welcome = await team["open"]("vic")

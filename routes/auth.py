@@ -69,11 +69,21 @@ def cookie_options(settings: Settings) -> dict:
     }
 
 
-async def _start_session(
-    response: Response, db: Database, settings: Settings, user_id: ObjectId
+async def start_session(
+    request: Request,
+    response: Response,
+    db: Database,
+    settings: Settings,
+    user_id: ObjectId,
 ) -> None:
     lifetime = timedelta(days=settings.session_days)
-    token = await create_session(db, user_id, lifetime)
+    token = await create_session(
+        db,
+        user_id,
+        lifetime,
+        user_agent=request.headers.get("user-agent"),
+        ip=client_ip(request),
+    )
     response.set_cookie(
         SESSION_COOKIE,
         token,
@@ -123,7 +133,7 @@ async def register(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "An account with this email already exists"
         )
-    await _start_session(response, db, settings, user["_id"])
+    await start_session(request, response, db, settings, user["_id"])
     if mailer:
         await _send_verification(background, db, mailer, settings, user, body.next)
     return UserResponse.from_document(user, site_owner)
@@ -162,7 +172,7 @@ async def login(
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, "Invalid email or password"
         )
-    await _start_session(response, db, settings, user["_id"])
+    await start_session(request, response, db, settings, user["_id"])
     return UserResponse.from_document(user, await is_site_owner(db, user))
 
 

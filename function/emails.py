@@ -48,6 +48,35 @@ def password_reset_email(public_url: str, to: str, name: str, token: str) -> Ema
     )
 
 
+def password_changed_email(public_url: str, to: str, name: str) -> Email:
+    link = _link(public_url, "/forgot-password")
+    return Email(
+        to=to,
+        subject="Your Lukis password was changed",
+        text=(
+            f"Hi {name},\n\n"
+            "The password for your Lukis account was just changed, and every "
+            "other device was logged out.\n\n"
+            "If this wasn't you, reset your password here right away:\n\n"
+            f"{link}\n"
+        ),
+    )
+
+
+def account_deleted_email(to: str, name: str) -> Email:
+    return Email(
+        to=to,
+        subject="Your Lukis account was deleted",
+        text=(
+            f"Hi {name},\n\n"
+            "Your Lukis account and your personal drawings have been deleted. "
+            "Drawings you made in shared workspaces stay with those "
+            "workspaces.\n\n"
+            "Thanks for drawing with us.\n"
+        ),
+    )
+
+
 def signup_invite_email(public_url: str, to: str, inviter: str, token: str) -> Email:
     link = _link(public_url, "/register", invite=token)
     return Email(

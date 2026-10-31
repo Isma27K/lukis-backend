@@ -1,8 +1,8 @@
-"""Object storage for drawing images and thumbnails.
+"""Object storage for drawing images, thumbnails and profile pictures.
 
 Production uses an S3-compatible server (RustFS) through the minio client;
-tests swap in an in-memory store. Objects are keyed by drawing, so permanently
-deleting a drawing only has to clear its prefix.
+tests swap in an in-memory store. Objects are keyed by drawing or user, so
+permanently deleting one only has to clear its prefix.
 """
 
 import asyncio
@@ -48,6 +48,14 @@ def thumbnail_key(drawing_id: object, theme: str) -> str:
 
 def drawing_prefix(drawing_id: object) -> str:
     return f"drawings/{drawing_id}/"
+
+
+def avatar_key(user_id: object) -> str:
+    return f"users/{user_id}/avatar"
+
+
+def user_prefix(user_id: object) -> str:
+    return f"users/{user_id}/"
 
 
 class S3Storage:

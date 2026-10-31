@@ -73,6 +73,8 @@ class Connection:
     name: str
     role: Role
     recheck: Recheck
+    # The user's picture version, as of connecting; None without one.
+    avatar_version: int | None = None
     # Came in through a public link rather than as a workspace member.
     guest: bool = False
     id: str = field(default_factory=lambda: secrets.token_hex(8))
@@ -89,6 +91,7 @@ class Connection:
             # Anonymous guests are each their own person.
             "userId": str(self.user_id) if self.user_id else f"guest-{self.id}",
             "name": self.name,
+            "avatarVersion": self.avatar_version,
             "guest": self.guest,
         }
 
@@ -113,7 +116,7 @@ class Hub:
     def room(self, drawing_id: str) -> dict[str, Connection]:
         return self.rooms.get(drawing_id, {})
 
-    def peers(self, drawing_id: str) -> list[dict[str, str]]:
+    def peers(self, drawing_id: str) -> list[dict[str, Any]]:
         return [c.describe() for c in self.room(drawing_id).values()]
 
     def broadcast(
@@ -263,6 +266,7 @@ def admit_member(db: AsyncDatabase, drawing_id: str) -> Admit:
             name=user["name"],
             role=membership["role"],
             recheck=recheck,
+            avatar_version=user.get("avatar_version"),
         )
 
     return admit
@@ -303,6 +307,7 @@ def admit_guest(db: AsyncDatabase, token: str) -> Admit:
             ),
             role=shared.role,
             recheck=recheck,
+            avatar_version=user.get("avatar_version") if user else None,
             guest=True,
         )
 
