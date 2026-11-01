@@ -167,6 +167,16 @@ cd backend/deploy
 docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
+## Public site and search engines
+
+The frontend serves the public pages (home, features, privacy, terms) and
+`robots.txt`, `sitemap.xml` and a web app manifest. They use `PUBLIC_URL` for
+canonical links and link previews. A copy without `PUBLIC_URL`, such as a
+staging server, tells search engines to stay away.
+
+`/pricing` is a draft only the site owner can open. `PRICING_PAGE=public`
+publishes it.
+
 ## Logs
 
 Backend, backup and Next.js server errors are one JSON object per line:
