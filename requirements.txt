@@ -3,3 +3,5 @@ pwdlib[argon2]==0.3.1
 pydantic-settings==2.16.1
 minio==7.2.20
 pymongo==4.19.0
+# Calls to Google, GitHub and Microsoft when logging in with them.
+httpx==0.28.1

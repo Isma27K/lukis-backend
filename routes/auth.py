@@ -92,7 +92,7 @@ async def start_session(
     )
 
 
-async def _send_verification(
+async def send_verification(
     background: BackgroundTasks,
     db: Database,
     mailer: Mailer,
@@ -135,7 +135,7 @@ async def register(
         )
     await start_session(request, response, db, settings, user["_id"])
     if mailer:
-        await _send_verification(background, db, mailer, settings, user, body.next)
+        await send_verification(background, db, mailer, settings, user, body.next)
     return UserResponse.from_document(user, site_owner)
 
 
@@ -205,7 +205,7 @@ async def resend_verification(
     if user.get("email_verified_at") is not None:
         return
     limiter.check(VERIFY_RESEND_PER_USER, str(user["_id"]))
-    await _send_verification(background, db, mailer, settings, user, body.next)
+    await send_verification(background, db, mailer, settings, user, body.next)
 
 
 # Works without a session: the link may be opened in another browser.

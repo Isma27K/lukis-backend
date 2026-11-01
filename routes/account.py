@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Request, Response, status
 
-from data.general.user import SessionResponse, UserResponse
+from data.general.user import IdentityResponse, SessionResponse, UserResponse
 from data.request.account import (
     ChangePasswordRequest,
     DeleteAccountRequest,
@@ -10,6 +10,7 @@ from data.request.account import (
 from function.account import (
     change_password,
     check_password,
+    confirm_deletion,
     delete_account,
     end_other_sessions,
     end_session,
@@ -18,14 +19,16 @@ from function.account import (
     save_avatar,
     update_name,
 )
-from function.auth import hash_token
+from function.auth import has_password, hash_token
 from function.emails import account_deleted_email, password_changed_email
+from function.oauth import list_identities, unlink
 from function.site import is_site_owner
 from middleware.auth import SESSION_COOKIE, CurrentUser, SessionToken
 from routes.auth import Limiter, cookie_options, start_session
 from utils.config import AppSettings
 from utils.db import Database
 from utils.mail import AppMailer, send_safely
+from utils.oauth import ProviderName
 from utils.storage import ObjectStorage
 
 router = APIRouter(prefix="/account", tags=["account"])
@@ -67,14 +70,17 @@ async def update_password(
     settings: AppSettings,
     user: CurrentUser,
 ) -> None:
-    await check_password(limiter, user, body.current_password)
+    # Accounts made with Google and the like set their first one without.
+    added = not has_password(user)
+    if not added:
+        await check_password(limiter, user, body.current_password)
     await change_password(db, user, body.new_password)
     # Every session ended, so whoever had the old password is out; this
     # browser carries on with a new one.
     await start_session(request, response, db, settings, user["_id"])
     if mailer:
         message = password_changed_email(
-            settings.public_url, user["email"], user["name"]
+            settings.public_url, user["email"], user["name"], added=added
         )
         background.add_task(send_safely, mailer, message)
 
@@ -119,9 +125,26 @@ async def remove_account(
     settings: AppSettings,
     user: CurrentUser,
 ) -> None:
-    await check_password(limiter, user, body.password)
+    await confirm_deletion(limiter, user, body.password, body.email)
     await delete_account(db, storage, user)
     response.delete_cookie(SESSION_COOKIE, **cookie_options(settings))
     if mailer:
         message = account_deleted_email(user["email"], user["name"])
         background.add_task(send_safely, mailer, message)
+
+
+# The Google, GitHub and Microsoft accounts the user can log in with.
+# Connecting one goes through the provider: POST /auth/oauth/{provider}/link.
+@router.get("/identities")
+async def identities(db: Database, user: CurrentUser) -> list[IdentityResponse]:
+    return [
+        IdentityResponse.from_document(identity)
+        for identity in await list_identities(db, user)
+    ]
+
+
+@router.delete("/identities/{provider}", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_identity(
+    provider: ProviderName, db: Database, user: CurrentUser
+) -> None:
+    await unlink(db, user, provider)

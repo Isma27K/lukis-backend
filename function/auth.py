@@ -52,21 +52,28 @@ async def verify_password(password: str, hashed: str) -> bool:
     return await asyncio.to_thread(password_hash.verify, password, hashed)
 
 
+def has_password(user: UserDocument) -> bool:
+    """False for accounts made by logging in with Google, GitHub or Microsoft
+    that haven't set one."""
+    return bool(user.get("password_hash"))
+
+
 async def register_user(
     db: AsyncDatabase,
     email: str,
     name: str,
-    password: str,
+    password: str | None,
     user_id: ObjectId | None = None,
+    email_verified: bool = False,
 ) -> UserDocument:
     now = datetime.now(UTC)
     user: UserDocument = {
         "_id": user_id or ObjectId(),
         "email": normalize_email(email),
         "name": name,
-        "password_hash": await hash_password(password),
+        "password_hash": await hash_password(password) if password else None,
         "created_at": now,
-        "email_verified_at": None,
+        "email_verified_at": now if email_verified else None,
     }
     try:
         await db.users.insert_one(user)
@@ -81,7 +88,8 @@ async def authenticate(
     db: AsyncDatabase, email: str, password: str
 ) -> UserDocument | None:
     user = await db.users.find_one({"email": normalize_email(email)})
-    if user is None:
+    # Accounts without a password take as long to refuse as unknown ones.
+    if user is None or not has_password(user):
         await verify_password(password, _DUMMY_HASH)
         return None
     if not await verify_password(password, user["password_hash"]):

@@ -2,8 +2,10 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from data.database.identity import IdentityDocument
 from data.database.session import SessionDocument
 from data.database.user import UserDocument
+from utils.oauth import ProviderName
 
 
 class UserResponse(BaseModel):
@@ -16,6 +18,9 @@ class UserResponse(BaseModel):
     site_owner: bool
     # The picture is at /users/{id}/avatar?v={avatar_version}; None without one.
     avatar_version: int | None
+    # False for accounts made with Google, GitHub or Microsoft that haven't set
+    # one; they set it without entering a current one.
+    has_password: bool
 
     @classmethod
     def from_document(cls, user: UserDocument, site_owner: bool) -> "UserResponse":
@@ -26,6 +31,7 @@ class UserResponse(BaseModel):
             email_verified=user.get("email_verified_at") is not None,
             site_owner=site_owner,
             avatar_version=user.get("avatar_version"),
+            has_password=bool(user.get("password_hash")),
         )
 
 
@@ -54,3 +60,25 @@ class SessionResponse(BaseModel):
             ip=session.get("ip"),
             current=current,
         )
+
+
+class IdentityResponse(BaseModel):
+    """A Google, GitHub or Microsoft account the user can log in with."""
+
+    provider: ProviderName
+    # The provider account's address when it was connected.
+    email: str | None
+    created_at: datetime
+
+    @classmethod
+    def from_document(cls, identity: IdentityDocument) -> "IdentityResponse":
+        return cls(
+            provider=identity["provider"],
+            email=identity["email"],
+            created_at=identity["created_at"],
+        )
+
+
+class OAuthStartResponse(BaseModel):
+    # Where to send the browser: the provider's page for picking an account.
+    url: str

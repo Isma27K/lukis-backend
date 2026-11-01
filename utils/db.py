@@ -41,6 +41,11 @@ async def ensure_indexes(db: AsyncDatabase) -> None:
     await db.signup_invites.create_index("token_hash", unique=True)
     await db.signup_invites.create_index("expires_at", expireAfterSeconds=0)
     await db.signup_invites.create_index("email")
+    # One Lukis account per provider account, one per provider per user.
+    await db.identities.create_index([("provider", 1), ("subject", 1)], unique=True)
+    await db.identities.create_index([("user_id", 1), ("provider", 1)], unique=True)
+    await db.oauth_states.create_index("state_hash", unique=True)
+    await db.oauth_states.create_index("expires_at", expireAfterSeconds=0)
 
 
 def get_db(request: Request) -> AsyncDatabase:

@@ -18,9 +18,12 @@ class UploadAvatarRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: CurrentPassword
+    # Left out by accounts that don't have a password yet.
+    current_password: CurrentPassword | None = None
     new_password: Password
 
 
 class DeleteAccountRequest(BaseModel):
-    password: CurrentPassword
+    # Accounts without a password type their email address instead.
+    password: CurrentPassword | None = None
+    email: Annotated[str, StringConstraints(max_length=320)] | None = None

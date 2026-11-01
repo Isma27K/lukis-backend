@@ -18,6 +18,7 @@ from routes import (
     health,
     invites,
     live,
+    oauth,
     share,
     site,
     users,
@@ -28,6 +29,7 @@ from utils.config import Settings, get_settings
 from utils.db import create_client, ensure_indexes
 from utils.logs import log_requests, show_app_logs
 from utils.mail import Mailer, create_mailer
+from utils.oauth import Provider, ProviderName, create_providers
 from utils.storage import S3Storage, Storage, StorageError
 
 logger = logging.getLogger("lukis")
@@ -55,6 +57,7 @@ def create_app(
     settings: Settings | None = None,
     storage: Storage | None = None,
     mailer: Mailer | None = None,
+    oauth_providers: dict[ProviderName, Provider] | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     show_app_logs()
@@ -74,6 +77,10 @@ def create_app(
     app.state.storage = storage or S3Storage(settings)
     # None when SMTP isn't set up, which switches email features off.
     app.state.mailer = mailer or create_mailer(settings)
+    # Google, GitHub and Microsoft, whichever have a client ID and secret.
+    app.state.oauth = (
+        create_providers(settings) if oauth_providers is None else oauth_providers
+    )
     # Who's connected to which drawing, for live collaboration.
     app.state.live = Hub()
     # Attempt counts for logins, sign-ups and emails.
@@ -87,6 +94,7 @@ def create_app(
     app.include_router(health.router)
     app.include_router(features.router)
     app.include_router(auth.router)
+    app.include_router(oauth.router)
     app.include_router(account.router)
     app.include_router(users.router)
     app.include_router(workspaces.router)

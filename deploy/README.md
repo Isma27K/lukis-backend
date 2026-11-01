@@ -188,6 +188,50 @@ Email is optional. With the `SMTP_*` settings filled in, Lukis:
 Without `SMTP_HOST`, none of that appears. Admins copy invite links from the
 settings page and send them themselves.
 
+## Logging in with Google, GitHub or Microsoft
+
+Optional, like email. Each provider shows up on the login page once its
+client ID and secret are in `.env`. Register this redirect URI with each one,
+with your `PUBLIC_URL` and the provider's name (`google`, `github` or
+`microsoft`):
+
+```
+https://lukis.example.com/api/auth/oauth/google/callback
+```
+
+- **Google:** Google Cloud console → APIs & Services → Credentials → Create
+  credentials → OAuth client ID → Web application. Add the URI under
+  "Authorized redirect URIs". The consent screen needs the `openid`, `email`
+  and `profile` scopes only. Set `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET`.
+- **GitHub:** Settings → Developer settings → OAuth Apps → New OAuth App. The
+  URI goes in "Authorization callback URL". Set `GITHUB_CLIENT_ID` and a
+  generated `GITHUB_CLIENT_SECRET`.
+- **Microsoft:** Microsoft Entra admin center → App registrations → New
+  registration, with a "Web" redirect URI. Make a client secret under
+  Certificates & secrets (it expires; note when). Set
+  `MICROSOFT_CLIENT_ID` (the Application ID) and `MICROSOFT_CLIENT_SECRET`.
+  `MICROSOFT_TENANT` decides who may log in: `common` for any Microsoft
+  account, `organizations` for work and school ones, or your tenant ID for
+  only your organization.
+
+How accounts work with them:
+
+- The first login with a provider makes a new account with its name and
+  email address, if sign-up allows it: an invite link works while sign-up is
+  invite-only. The site owner's account is always made with a password,
+  since it needs the setup code.
+- Logins are matched on the provider's ID for the person, never on the email
+  address. Someone who already has a password account with the same address
+  gets told to log in with the password, then connect the provider under
+  Your account → Connected accounts. (Microsoft work and school accounts can
+  claim any address, so matching on it would let them take over accounts.)
+- Addresses Google and GitHub have verified, and personal Microsoft ones,
+  count as confirmed. Others get the usual confirmation email.
+- Accounts made this way have no password until they set one on their account
+  page (or with "Forgot your password?"). A provider can't be disconnected if
+  it's the only way left to log in.
+
 ## Backups
 
 The `backup` service writes `backups/<db>-<time>.tar.gz` to the bucket every

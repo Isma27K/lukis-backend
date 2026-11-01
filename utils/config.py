@@ -46,6 +46,20 @@ class Settings(BaseSettings):
     # The code the first account needs to register and become site owner.
     # Without it a random one is printed in the logs at startup.
     setup_code: str = ""
+    # Logging in with Google, GitHub or Microsoft. Each is offered once its
+    # client ID and secret are set. Register
+    # <first FRONTEND_ORIGIN>/api/auth/oauth/<provider>/callback with the
+    # provider as the redirect URI.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    microsoft_client_id: str = ""
+    microsoft_client_secret: str = ""
+    # Which Microsoft accounts may log in: "common" (personal, work and
+    # school), "organizations" (work and school), "consumers" (personal), or
+    # one organization's tenant ID.
+    microsoft_tenant: str = "common"
 
     @property
     def frontend_origins(self) -> list[str]:

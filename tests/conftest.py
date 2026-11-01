@@ -23,13 +23,19 @@ def mailer():
 
 
 @pytest.fixture
-async def app(storage, mailer):
+def oauth_providers():
+    """None set up, even if .env has client IDs; test_oauth.py sets fakes."""
+    return {}
+
+
+@pytest.fixture
+async def app(storage, mailer, oauth_providers):
     # A fresh database per test, so test runs that overlap (say, one in the
     # IDE and one in a terminal) can't drop each other's data.
     db_name = f"lukis_test_{uuid.uuid4().hex[:12]}"
     # No SMTP host, so a real mail server is never used even if .env has one.
     settings = Settings(mongo_db=db_name, smtp_host="", setup_code=SETUP_CODE)
-    app = create_app(settings, storage, mailer)
+    app = create_app(settings, storage, mailer, oauth_providers)
     # httpx's ASGITransport doesn't run lifespan events, so run them here.
     async with app.router.lifespan_context(app):
         yield app

@@ -48,17 +48,43 @@ def password_reset_email(public_url: str, to: str, name: str, token: str) -> Ema
     )
 
 
-def password_changed_email(public_url: str, to: str, name: str) -> Email:
+def password_changed_email(
+    public_url: str, to: str, name: str, added: bool = False
+) -> Email:
+    """`added` when an account that logged in with Google and the like
+    didn't have a password before."""
     link = _link(public_url, "/forgot-password")
+    what = "now has a password" if added else "had its password changed"
     return Email(
         to=to,
-        subject="Your Lukis password was changed",
+        subject=(
+            "A password was added to your Lukis account"
+            if added
+            else "Your Lukis password was changed"
+        ),
         text=(
             f"Hi {name},\n\n"
-            "The password for your Lukis account was just changed, and every "
-            "other device was logged out.\n\n"
+            f"Your Lukis account {what} just now, and every other device was "
+            "logged out.\n\n"
             "If this wasn't you, reset your password here right away:\n\n"
             f"{link}\n"
+        ),
+    )
+
+
+def account_connected_email(
+    public_url: str, to: str, name: str, provider: str
+) -> Email:
+    link = _link(public_url, "/account")
+    return Email(
+        to=to,
+        subject=f"{provider} was connected to your Lukis account",
+        text=(
+            f"Hi {name},\n\n"
+            f"A {provider} account was just connected to your Lukis account, "
+            "and can now be used to log in.\n\n"
+            "If this wasn't you, disconnect it and change your password "
+            f"under Connected accounts:\n\n{link}\n"
         ),
     )
 

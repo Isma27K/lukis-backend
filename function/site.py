@@ -34,6 +34,19 @@ logger = logging.getLogger("lukis.site")
 INVITE_ONLY = "Sign-up is invite-only. Ask the site owner for an invite link."
 WRONG_SETUP_CODE = "Enter the setup code from the server logs"
 
+
+class InviteOnlyError(ForbiddenError):
+    """Sign-up is closed and there's no invite that works."""
+
+    detail = INVITE_ONLY
+
+
+class InviteMismatchError(ForbiddenError):
+    """The invite is for another address."""
+
+    def __init__(self, invited: str):
+        super().__init__(f"This invite is for {invited}")
+
 # No 0/O or 1/I/L, so a code read off a screen types back right. 12 of these
 # make about 59 bits, far out of reach at the sign-up rate limit.
 _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -195,9 +208,9 @@ async def _admit(
 
     invited = await find_signup_invite(db, invite_token, site) if invite_token else None
     if invited is None:
-        raise ForbiddenError(INVITE_ONLY)
+        raise InviteOnlyError
     if invited != normalize_email(email):
-        raise ForbiddenError(f"This invite is for {invited}")
+        raise InviteMismatchError(invited)
     return _Admission()
 
 
@@ -205,14 +218,19 @@ async def register_account(
     db: AsyncDatabase,
     email: str,
     name: str,
-    password: str,
+    password: str | None,
     invite_token: str | None = None,
     setup_code: str | None = None,
+    email_verified: bool = False,
+    user_id: ObjectId | None = None,
 ) -> tuple[UserDocument, bool]:
     """Signs someone up if the site lets them. Returns the account and whether
-    it became the site owner. Raises EmailTakenError like register_user."""
+    it became the site owner. Raises EmailTakenError like register_user.
+
+    `password` is None for sign-ups through Google, GitHub or Microsoft, which
+    also say whether the address is verified."""
     admission = await _admit(db, email, invite_token, setup_code)
-    user_id = ObjectId()
+    user_id = user_id or ObjectId()
 
     if admission.setup_code_hash:
         # One conditional write, so two people signing up at the same moment
@@ -236,7 +254,9 @@ async def register_account(
             raise ForbiddenError(WRONG_SETUP_CODE)
 
     try:
-        user = await register_user(db, email, name, password, user_id=user_id)
+        user = await register_user(
+            db, email, name, password, user_id=user_id, email_verified=email_verified
+        )
     except EmailTakenError:
         if admission.setup_code_hash:
             # Give the claim back, so the code still works.

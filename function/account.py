@@ -9,7 +9,13 @@ from pymongo.asynchronous.database import AsyncDatabase
 from data.database.session import SessionDocument
 from data.database.user import UserDocument
 from function.access import parse_id
-from function.auth import hash_password, hash_token, verify_password
+from function.auth import (
+    has_password,
+    hash_password,
+    hash_token,
+    normalize_email,
+    verify_password,
+)
 from function.drawings import purge_drawing
 from function.errors import (
     ConflictError,
@@ -30,6 +36,7 @@ AVATAR_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_AVATAR_BYTES = 512 * 1024
 
 WRONG_PASSWORD = "That's not your current password"
+WRONG_EMAIL = "Type your email address exactly as it's shown"
 SITE_OWNER_CANT_LEAVE = (
     "The site owner's account can't be deleted. Make another account the "
     "site owner first (python -m scripts.site set-owner)."
@@ -80,16 +87,32 @@ async def remove_avatar(
 
 
 async def check_password(
-    limiter: RateLimiter, user: UserDocument, password: str
+    limiter: RateLimiter, user: UserDocument, password: str | None
 ) -> None:
     """For changes that need the password even with a session. Only wrong
-    guesses count against the limit."""
+    guesses count against the limit. Only for accounts that have one."""
+    if not password:
+        raise ForbiddenError(WRONG_PASSWORD)
     key = str(user["_id"])
     if retry_after := limiter.retry_after(PASSWORD_FAILURES_PER_USER, key):
         raise TooManyRequestsError(retry_after)
-    if not await verify_password(password, user["password_hash"]):
+    if not await verify_password(password, user["password_hash"] or ""):
         limiter.count(PASSWORD_FAILURES_PER_USER, key)
         raise ForbiddenError(WRONG_PASSWORD)
+
+
+async def confirm_deletion(
+    limiter: RateLimiter,
+    user: UserDocument,
+    password: str | None,
+    email: str | None,
+) -> None:
+    """The password, or for accounts without one, their email address typed
+    out, so a stray click can't delete everything."""
+    if has_password(user):
+        await check_password(limiter, user, password)
+    elif normalize_email(email or "") != user["email"]:
+        raise ForbiddenError(WRONG_EMAIL)
 
 
 async def change_password(
@@ -191,4 +214,6 @@ async def delete_account(
     await db.memberships.delete_many({"user_id": user["_id"]})
     await db.sessions.delete_many({"user_id": user["_id"]})
     await db.email_tokens.delete_many({"user_id": user["_id"]})
+    await db.identities.delete_many({"user_id": user["_id"]})
+    await db.oauth_states.delete_many({"user_id": user["_id"]})
     await db.users.delete_one({"_id": user["_id"]})

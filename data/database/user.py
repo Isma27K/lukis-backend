@@ -9,7 +9,9 @@ class UserDocument(TypedDict):
     # Stored lowercased; the unique index relies on it.
     email: str
     name: str
-    password_hash: str
+    # None for accounts made by logging in with Google, GitHub or Microsoft,
+    # until they set a password.
+    password_hash: str | None
     created_at: datetime
     # When the user followed the link emailed to them; missing or None until
     # then (accounts from before verification existed have no field at all).

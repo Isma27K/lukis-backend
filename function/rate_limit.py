@@ -35,6 +35,9 @@ INVITES_PER_USER = Limit("invite-user", 30, 60 * 60)
 PASSWORD_FAILURES_PER_USER = Limit("password-user", 10, 15 * 60)
 # Using a link from an email (verify, reset).
 TOKEN_USE_PER_IP = Limit("token-ip", 30, 60 * 60)
+# Logging in with Google and the like: going to the provider and coming back
+# each count.
+OAUTH_PER_IP = Limit("oauth-ip", 60, 5 * 60)
 # Passwords on public links: every attempt per address, and wrong ones per
 # link, against guessing from many addresses.
 SHARE_UNLOCK_PER_IP = Limit("share-unlock-ip", 20, 15 * 60)
