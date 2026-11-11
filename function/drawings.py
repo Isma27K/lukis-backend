@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
-from data.database.drawing import DrawingDocument, SceneDocument
+from data.database.drawing import DrawingDocument, SceneContent, SceneDocument
 from data.database.user import UserDocument
 from data.database.workspace import MembershipDocument, Role
 from function.access import parse_id, require_role
@@ -66,7 +66,7 @@ async def create_drawing(
     workspace_id: ObjectId,
     user: UserDocument,
     title: str,
-    scene: SceneDocument | None = None,
+    scene: SceneContent | None = None,
 ) -> DrawingDocument:
     now = datetime.now(UTC)
     drawing: DrawingDocument = {

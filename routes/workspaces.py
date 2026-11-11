@@ -20,6 +20,7 @@ from function.drawings import create_drawing, list_drawings, list_trash
 from function.emails import invite_email
 from function.invites import create_invite, list_invites, revoke_invite
 from function.rate_limit import INVITES_PER_USER, RateLimiter, get_rate_limiter
+from function.scene import first_scene
 from function.workspaces import (
     change_member_role,
     create_workspace,
@@ -96,7 +97,9 @@ async def new_drawing(
     workspace_id: str, body: CreateDrawingRequest, db: Database, user: CurrentUser
 ) -> DrawingResponse:
     workspace, membership = await get_workspace(db, workspace_id, user, "editor")
-    drawing = await create_drawing(db, workspace["_id"], user, body.title)
+    elements = [element.model_dump() for element in body.elements]
+    scene = first_scene(elements, body.app_state)
+    drawing = await create_drawing(db, workspace["_id"], user, body.title, scene)
     return DrawingResponse.from_document_with_role(drawing, membership["role"])
 
 

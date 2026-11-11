@@ -38,13 +38,16 @@ class FileDocument(TypedDict):
     created_at: datetime
 
 
-class SceneDocument(TypedDict):
-    # Same as the drawing's _id. Kept apart from DrawingDocument so listing
-    # drawings never loads element arrays.
-    _id: ObjectId
+class SceneContent(TypedDict):
     # Excalidraw elements, stored as the editor sends them.
     elements: list[dict[str, Any]]
     app_state: dict[str, Any]
+
+
+class SceneDocument(SceneContent):
+    # Same as the drawing's _id. Kept apart from DrawingDocument so listing
+    # drawings never loads element arrays.
+    _id: ObjectId
     # Bumped on every save; writes only land if it hasn't moved since the read.
     rev: int
     # When the version history last took an automatic snapshot. Missing from

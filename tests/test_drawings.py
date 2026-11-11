@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from bson import ObjectId
 
 import function.scene as scene_module
@@ -64,6 +66,38 @@ async def test_create_list_rename_duplicate_delete(client):
     assert (await client.get(f"/drawings/{first['id']}/scene")).status_code == 404
     listed = (await client.get(f"/workspaces/{workspace_id}/drawings")).json()
     assert first["id"] not in [d["id"] for d in listed]
+
+
+async def test_create_with_a_first_scene(client):
+    await signup(client)
+    workspace_id = await personal_workspace_id(client)
+    stale = int((datetime.now(UTC) - timedelta(days=2)).timestamp() * 1000)
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/drawings",
+        json={
+            "elements": [
+                element("b", index="a1", strokeColor="#1e1e1e"),
+                element("a", index="a0"),
+                # Deleted long ago: nothing to keep a tombstone for.
+                element("gone", index="a2", deleted=True, updated=stale),
+            ],
+            "app_state": {"viewBackgroundColor": "#fff"},
+        },
+    )
+
+    assert response.status_code == 201
+    drawing = response.json()
+    assert drawing["title"] == "Untitled"
+    scene = await scene_of(client, drawing["id"])
+    assert [e["id"] for e in scene["elements"]] == ["a", "b"]
+    assert scene["elements"][1]["strokeColor"] == "#1e1e1e"
+    assert scene["app_state"] == {"viewBackgroundColor": "#fff"}
+    assert scene["rev"] == 0
+    # Later saves merge into it like any other scene.
+    saved = await save(client, drawing["id"], [element("a", version=2, index="a0")])
+    assert saved.json()["rev"] == 1
+    assert len((await scene_of(client, drawing["id"]))["elements"]) == 2
 
 
 async def test_scene_round_trip_and_partial_saves(client):

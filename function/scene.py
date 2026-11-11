@@ -4,7 +4,7 @@ from typing import Any
 from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 
-from data.database.drawing import DrawingDocument, SceneDocument
+from data.database.drawing import DrawingDocument, SceneContent, SceneDocument
 from function.errors import ConflictError
 from function.versions import maybe_auto_snapshot
 from utils.config import Settings
@@ -42,6 +42,16 @@ def merge_elements(
     ]
     # Fractional indexes are plain strings ordered by code point, as in the editor.
     return sorted(kept, key=lambda element: (element.get("index") or "", element["id"]))
+
+
+def first_scene(
+    elements: list[Element], app_state: dict[str, Any] | None
+) -> SceneContent:
+    """The scene of a drawing created with something already on it."""
+    return {
+        "elements": merge_elements([], elements, datetime.now(UTC)),
+        "app_state": app_state or {},
+    }
 
 
 async def load_scene(db: AsyncDatabase, drawing: DrawingDocument) -> SceneDocument:

@@ -7,10 +7,6 @@ Title = Annotated[
 ]
 
 
-class CreateDrawingRequest(BaseModel):
-    title: Title = "Untitled"
-
-
 class UpdateDrawingRequest(BaseModel):
     title: Title
 
@@ -42,6 +38,14 @@ class SceneElement(BaseModel):
     isDeleted: bool = False
     # Epoch milliseconds of the element's last change.
     updated: int = 0
+
+
+class CreateDrawingRequest(BaseModel):
+    title: Title = "Untitled"
+    # What the drawing starts with. The editor only creates a drawing once
+    # there's something to save, and sends that along.
+    elements: list[SceneElement] = []
+    app_state: dict[str, Any] | None = None
 
 
 class SaveSceneRequest(BaseModel):
