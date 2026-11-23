@@ -32,3 +32,7 @@ class MemoryStorage:
 
     async def ping(self) -> None:
         self._check()
+
+    async def ensure_bucket(self) -> bool:
+        self._check()
+        return False

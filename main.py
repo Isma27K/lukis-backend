@@ -53,6 +53,18 @@ async def handle_storage_error(request: Request, error: StorageError) -> JSONRes
     )
 
 
+async def ensure_bucket(storage: Storage, settings: Settings) -> None:
+    """A fresh object store (like the one docker compose starts) has no
+    bucket yet, so make it. Storage being down doesn't stop the app from
+    starting: /health reports it, and file requests answer 503 until it's
+    back."""
+    try:
+        if await storage.ensure_bucket():
+            logger.info(f"Created the storage bucket {settings.s3_bucket!r}")
+    except StorageError as error:
+        logger.warning(f"Couldn't check the storage bucket: {error}")
+
+
 def create_app(
     settings: Settings | None = None,
     storage: Storage | None = None,
@@ -68,6 +80,7 @@ def create_app(
         app.state.db = client[settings.mongo_db]
         await ensure_indexes(app.state.db)
         await ensure_site(app.state.db, settings)
+        await ensure_bucket(app.state.storage, settings)
         yield
         await client.close()
 

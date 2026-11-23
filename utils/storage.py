@@ -37,6 +37,9 @@ class Storage(Protocol):
     async def ping(self) -> None:
         """Raises StorageError unless the bucket is reachable."""
 
+    async def ensure_bucket(self) -> bool:
+        """Creates the bucket if it doesn't exist. True if it had to."""
+
 
 def file_key(drawing_id: object, file_id: str) -> str:
     return f"drawings/{drawing_id}/files/{file_id}"
@@ -137,6 +140,15 @@ class S3Storage:
     async def ping(self) -> None:
         if not await self._run(self.client.bucket_exists, self.bucket):
             raise StorageError(f"Bucket {self.bucket!r} doesn't exist")
+
+    async def ensure_bucket(self) -> bool:
+        def ensure() -> bool:
+            if self.client.bucket_exists(self.bucket):
+                return False
+            self.client.make_bucket(self.bucket)
+            return True
+
+        return await self._run(ensure)
 
 
 def get_storage(request: Request) -> Storage:

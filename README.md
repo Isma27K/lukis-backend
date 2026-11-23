@@ -3,8 +3,11 @@
 The API behind [Lukis](https://github.com/Isma27K/lukis-front), a hand-drawn
 whiteboard built on Excalidraw. It owns accounts, workspaces and roles,
 drawings and their scenes, version history, share links, image storage and
-the live-collaboration relay. It also holds the Docker Compose stack for
-deploying the whole app, in [`deploy/`](deploy/README.md).
+the live-collaboration relay.
+
+**Want to run Lukis?** The Docker Compose stack and the self-hosting guide
+live in the frontend repo:
+[lukis-front → docs/self-hosting.md](https://github.com/Isma27K/lukis-front/blob/main/docs/self-hosting.md).
 
 - **FastAPI** on Python 3.12+
 - **MongoDB** 7 or 8 for everything except files
@@ -52,7 +55,6 @@ replaced by in-memory fakes.
 | `middleware/` | Session auth and the CSRF guard |
 | `utils/` | Settings, database, storage, mail, logging |
 | `scripts/` | Server-side tools: `site` (owner and sign-up) and `backup` |
-| `deploy/` | Docker Compose stack and deployment guide |
 
 ## License
 

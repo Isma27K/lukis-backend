@@ -64,7 +64,7 @@ def cookie_options(settings: Settings) -> dict:
     return {
         "httponly": True,
         "samesite": "lax",
-        "secure": settings.cookie_secure,
+        "secure": settings.secure_cookies,
         "path": "/",
     }
 

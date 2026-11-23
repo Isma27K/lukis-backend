@@ -10,8 +10,9 @@ class Settings(BaseSettings):
 
     mongo_url: str = "mongodb://localhost:27017"
     mongo_db: str = "lukis"
-    # Turn on in production, where the app is served over HTTPS.
-    cookie_secure: bool = False
+    # Whether cookies are sent over HTTPS only. Unset, it follows the first
+    # frontend origin: on for https://, off for http:// (a laptop or a LAN).
+    cookie_secure: bool | None = None
     session_days: int = 30
     # The site's origin(s), comma-separated. Live-collaboration WebSockets
     # opened from any other origin are refused.
@@ -69,6 +70,12 @@ class Settings(BaseSettings):
     def public_url(self) -> str:
         """Where links in emails point: the first frontend origin."""
         return self.frontend_origins[0].rstrip("/")
+
+    @property
+    def secure_cookies(self) -> bool:
+        if self.cookie_secure is not None:
+            return self.cookie_secure
+        return self.public_url.startswith("https://")
 
 
 @lru_cache
