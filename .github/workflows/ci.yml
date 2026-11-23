@@ -32,8 +32,8 @@ jobs:
       - run: pytest
 
   # Once the tests pass on main, builds the image and pushes it to GitHub's
-  # container registry as ghcr.io/<owner>/lukis-backend, private like this
-  # repo. deploy/compose.yaml pulls it from there.
+  # container registry as ghcr.io/<owner>/lukis-backend. deploy/compose.yaml
+  # pulls it from there.
   publish:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -69,12 +69,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Private packages get little free storage, so keep only recent ones.
-      # Never fails the run: deleting needs the repo to have admin access to
-      # the package (package settings -> Manage Actions access).
-      - uses: actions/delete-package-versions@v5
-        continue-on-error: true
-        with:
-          package-name: lukis-backend
-          package-type: container
-          min-versions-to-keep: 10

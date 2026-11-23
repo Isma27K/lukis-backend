@@ -32,11 +32,8 @@ services:
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8000
-      # For canonical links, the sitemap and link previews. Search engines
-      # are kept out of copies that don't set it.
+      # For link previews of shared drawings.
       PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}
-      # "public" publishes /pricing; until then only the site owner sees it.
-      PRICING_PAGE: ${PRICING_PAGE:-}
     depends_on:
       backend:
         condition: service_healthy

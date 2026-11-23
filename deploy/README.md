@@ -21,9 +21,9 @@ checks pass, CI builds an image and pushes it to GitHub's container registry:
 - `ghcr.io/isma27k/lukis-frontend`
 - `ghcr.io/isma27k/lukis-backend`
 
-Each image is tagged `latest` and `sha-<short commit>`. The packages are
-private like the repos, and CI keeps the 10 most recent versions of each.
-The server only pulls them, so it needs nothing but this folder.
+Each image is tagged `latest` and `sha-<short commit>`. The server only pulls
+them, so it needs nothing but this folder. To run your own builds instead, see
+[Building from source instead](#building-from-source-instead).
 
 The images are built for `linux/amd64`. An ARM server (such as a Raspberry Pi)
 would need `platforms:` added to the workflows.
@@ -34,17 +34,7 @@ would need `platforms:` added to the workflows.
    `.env.example`, and for your own proxy or database `compose.own-proxy.yaml`,
    `nginx.conf.example` and `compose.own-mongo.yaml`).
 
-2. Let the server read the private images. On GitHub, go to Settings →
-   Developer settings → Personal access tokens → **Tokens (classic)**. Create
-   a token with only the `read:packages` scope, then on the server:
-
-   ```sh
-   echo "<token>" | docker login ghcr.io -u Isma27K --password-stdin
-   ```
-
-   Docker remembers the login in `~/.docker/config.json`.
-
-3. Configure:
+2. Configure:
 
    ```sh
    cp .env.example .env    # then fill it in
@@ -77,7 +67,7 @@ would need `platforms:` added to the workflows.
    (`docker compose version`). To move existing data over, run a backup
    first and restore it after switching (see Backups).
 
-4. Start:
+3. Start:
 
    ```sh
    docker compose pull
@@ -85,7 +75,7 @@ would need `platforms:` added to the workflows.
    docker compose ps          # backend should become "healthy"
    ```
 
-5. Create your account. The first account becomes the site owner, and on a
+4. Create your account. The first account becomes the site owner, and on a
    fresh install it needs a one-time setup code, so a stranger who reaches
    the site before you can't claim it. The backend prints the code when it
    starts:
@@ -155,7 +145,7 @@ clone next to them:
 lukis/
   backend/     this repo (compose files are in backend/deploy)
   frontend/
-  excalidraw/  git clone https://github.com/excalidraw/excalidraw
+  excalidraw/  git clone -b lukis https://github.com/Isma27K/lukis-editor excalidraw
 ```
 
 ```sh
@@ -167,15 +157,11 @@ cd backend/deploy
 docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
-## Public site and search engines
+## Search engines and link previews
 
-The frontend serves the public pages (home, features, privacy, terms) and
-`robots.txt`, `sitemap.xml` and a web app manifest. They use `PUBLIC_URL` for
-canonical links and link previews. A copy without `PUBLIC_URL`, such as a
-staging server, tells search engines to stay away.
-
-`/pricing` is a draft only the site owner can open. `PRICING_PAGE=public`
-publishes it.
+Everything in Lukis is behind a login or a private link, so every page says
+`noindex` and `robots.txt` disallows all crawling. `PUBLIC_URL` is still used
+to build absolute links in link previews of shared drawings.
 
 ## Logs
 
